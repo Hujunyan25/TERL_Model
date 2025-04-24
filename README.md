@@ -7,6 +7,8 @@ TERL (**Transformer-Enhanced Reinforcement Learning**) is a deep reinforcement l
 
 A demonstration video is available [here](https://youtu.be/niYCRtdcDs0?si=G6p_a9j2fI6LzS4r).
 
+![TERL Network Architecture.png](TERL%20Network%20Architecture.png)
+
 If you find this repository useful in your research, please cite the following paper:
 ```bibtex
 @article{zhang2025terl,
@@ -16,9 +18,6 @@ If you find this repository useful in your research, please cite the following p
   year={2025}
 }
 ```
-
-![TERL Network Architecture.png](TERL%20Network%20Architecture.png)
-
 ## **Key Features**
 - 🚀 **Transformer-Based Policy**: Utilizes **self-attention mechanisms** to enhance feature extraction and decision-making.  
 - 🎯 **Adaptive Target Selection**: Dynamically prioritizes encirclement targets to improve coordination.  
