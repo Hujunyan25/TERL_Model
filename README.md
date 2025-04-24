@@ -4,7 +4,18 @@
 ## **Overview**  
 This repository contains the code implementation for our paper:  [**TERL: Large-Scale Multi-Target Encirclement Using Transformer-Enhanced Reinforcement Learning**](https://arxiv.org/abs/2503.12395).
 TERL (**Transformer-Enhanced Reinforcement Learning**) is a deep reinforcement learning framework designed for **large-scale multi-target encirclement** in multi-robot pursuit-evasion (PE) tasks. Unlike traditional RL-based approaches that primarily focus on **single-target pursuit**, TERL integrates a **transformer-based policy network** with an **adaptive target selection mechanism**, enabling efficient and coordinated multi-target encirclement, even in large-scale settings.  
+
 A demonstration video is available [here](https://youtu.be/niYCRtdcDs0?si=G6p_a9j2fI6LzS4r).
+
+If you find this repository useful in your research, please cite the following paper:
+```bibtex
+@article{zhang2025terl,
+  title={TERL: Large-Scale Multi-Target Encirclement Using Transformer-Enhanced Reinforcement Learning},
+  author={Zhang, Heng and Zhao, Guoxiang and Ren, Xiaoqiang},
+  journal={arXiv preprint arXiv:2503.12395},
+  year={2025}
+}
+```
 
 ![TERL Network Architecture.png](TERL%20Network%20Architecture.png)
 
