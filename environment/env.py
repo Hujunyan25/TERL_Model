@@ -268,7 +268,7 @@ class MarineEnv(gym.Env):
 
         # Generate evaders first
         num_evaders = 0
-        iteration = 500000
+        iteration = 50000
         while True:
             # Evader start positions away from boundaries
             evader_start = self.rd.uniform(low=15.0 * np.ones(2),
@@ -289,7 +289,7 @@ class MarineEnv(gym.Env):
 
         # Generate pursuers
         num_pursuers = 0
-        iteration = 8000000
+        iteration = 8000
         while True:
             # Pursuer start positions
             pursuer_start = self.rd.uniform(low=2.0 * np.ones(2),

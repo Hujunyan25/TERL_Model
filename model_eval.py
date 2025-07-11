@@ -7,6 +7,7 @@ from thirdparty.APF import ApfAgent
 from visualization import env_visualizer
 import cv2
 import shutil
+from datetime import datetime
 
 
 class generate_video():
@@ -72,28 +73,22 @@ class generate_video():
             length += 1
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
         return trajectories
-
-    # def exp_setup(self,env):
-    # #这里包含了所有追捕者的观测到的信息
-    #     pursuer_state, _ = env.reset()
-    #     state, _ = pursuer_state
-    #     evader_state, _ = env.get_evaders_observation()
-    #     return state,evader_state
     
 
     def run_experiment(self):
-        # pursuer_state, evader_state = self.exp_setup(self.eval_env)
         eavl_configs = self.eval_env.episode_data()
         trajectories = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
-    
+        dt = datetime.now()
+        create_timestamp = dt.strftime("%H-%M-%S")
         save_dir = os.path.join(self.project_root, "photos")
-         # 清除 save_dir 路径下的所有文件和文件夹
+        # 清除 save_dir 路径下的所有非 .mp4 文件和文件夹
         if os.path.exists(save_dir):
             for filename in os.listdir(save_dir):
                 file_path = os.path.join(save_dir, filename)
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)  # 删除文件或链接
+                        if not filename.lower().endswith('.mp4'):
+                            os.unlink(file_path)  # 删除非 .mp4 文件或链接
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)  # 删除文件夹
                 except Exception as e:
@@ -115,7 +110,7 @@ class generate_video():
             height, width, layers = frame.shape
 
             #定义视频编码器并创建VideoWriter对象
-            video_path = os.path.join(save_dir, f"TERL.mp4")
+            video_path = os.path.join(save_dir, f"{create_timestamp}_TERL.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 可以根据需要选择不同的编码器
             video = cv2.VideoWriter(video_path, fourcc, 10, (width, height))  # 10为帧率，可以根据需要调整
             
