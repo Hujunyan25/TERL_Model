@@ -227,12 +227,12 @@ def run_experiment(eval_schedules, index):
     all_trajectories_exp = [] if save_trajectory else None
     all_eval_configs_exp = [] if save_trajectory else None
 
-    for idx, count in enumerate(eval_schedules["num_episodes"]):
+    for idx, count in enumerate(eval_schedules["num_episodes"]):#这里就是说有三轮实验，每轮实验有20次episodes
         dashboard(eval_schedules, idx)
 
         robot_nums.append(eval_schedules["num_pursuers"][idx])
         # all_test_rob = [0]*len(agents)
-        all_successes = [[] for _ in agents]
+        all_successes = [[] for _ in agents]#有三种智能体
         all_rewards = [[] for _ in agents]
         all_computation_times = [[] for _ in agents]
         all_max_success_times_with_success = [[] for _ in agents]
@@ -326,6 +326,7 @@ def run_experiment(eval_schedules, index):
             all_eval_configs_exp.append(copy.deepcopy(all_eval_configs))
 
     # Save data
+    #这里是写入数据的地方
     if save_trajectory:
         exp_data = dict(eval_schedules=eval_schedules,
                         names=names,

@@ -60,9 +60,11 @@ class ApfAgent:
         # Environment configuration
         self.apf_config = ConfigManager.get_instance()
         self.x_min = 0.0
-        self.x_max = self.apf_config.get("env.width", default=100)
+        # self.x_max = self.apf_config.get("env.width", default=100)
+        self.x_max = 100
         self.y_min = 0.0
-        self.y_max = self.apf_config.get("env.height", default=100)
+        # self.y_max = self.apf_config.get("env.height", default=100)
+        self.y_max = 100
 
     def position_force(self, position, radius):
         """

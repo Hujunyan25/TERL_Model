@@ -12,7 +12,7 @@ from policy.agent import Agent
 from utils import logger as logger
 from config_manager import ConfigManager
 
-
+#基于实验数据进行可视化展示
 def initialize_config_manager(config_file):
     """Initialize and load configuration manager.
 
@@ -56,12 +56,7 @@ if __name__ == "__main__":
 
     logger.info(f"Loaded data from {file_path}")
 
-    model_name = [
-        "TERL",
-        "IQN",
-        "MEAN",
-        "DQN",
-    ]
+    model_name = ["TERL"]
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -90,6 +85,7 @@ if __name__ == "__main__":
     ep_id = 1
 
     if args.video:
+        #这里是生成图片
         for agent_id in range(len(exp_data["all_trajectories_exp"][schedule_id])):
             save_dir = os.path.join(current_dir, module, model_name[agent_id], create_timestamp)
             os.makedirs(save_dir, exist_ok=True)
@@ -100,6 +96,8 @@ if __name__ == "__main__":
             ev.draw_video_plots(trajectories=exp_data["all_trajectories_exp"][schedule_id][agent_id][ep_id],
                                 colors=colors, save_dir=save_dir)
             print(f"{model_name[agent_id]} done.")
+
+
     else:
         for agent_id in range(len(exp_data["all_trajectories_exp"][schedule_id])):
             save_dir = os.path.join(current_dir, module, model_name[agent_id], create_timestamp)

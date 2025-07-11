@@ -122,8 +122,14 @@ class MarineEnv(gym.Env):
         # Parameter initialization
         # Map parameters
         self.config_env = ConfigManager().get_instance()
-        self.width = self.config_env.get("env.width", default=100)  # x-axis dimension
-        self.height = self.config_env.get("env.height", default=100)  # y-axis dimension
+        try:
+            self.width = self.config_env.get("env.width", default=100)  # x-axis dimension
+            self.height = self.config_env.get("env.height", default=100)  # y-axis dimension
+        except KeyError as e:
+            print(f"Warning: {e}. Using default value 100 for width.")
+            self.width = 100
+            self.height = 100
+
         self.arena_size = self.width
         # Vortex parameters
         self.vortex_core_radius = 0.5  # vortex core radius
@@ -132,33 +138,55 @@ class MarineEnv(gym.Env):
         self.v_range = [5, 10]  # velocity range at vortex edge
 
         # Obstacle parameters
-        self.obs_r_range = self.config_env.get("env.obs_r_range", default=[1.0, 1.0])  # obstacle radius range
+        try:
+            self.obs_r_range = self.config_env.get("env.obs_r_range", default=[1.0, 1.0])  # obstacle radius range
+        except KeyError as e:
+            self.obs_r_range = [1.0, 1.0]
 
         # Robot generation parameters
-        self.clear_r = self.config_env.get("env.clear_r", default=15.0)  # safe zone around start positions
+        try:
+            self.clear_r = self.config_env.get("env.clear_r", default=15.0)  # safe zone around start positions
+        except KeyError as e:
+            self.clear_r = 10.0
         self.min_pursuer_evader_init_dis = 15.0  # min pursuer-evader start distance
         self.min_evader_evader_init_dis = 10.0  # min evader-evader start distance
 
         # Reward/penalty parameters
-        self.goal_reward = self.config_env.get("env.goal_reward", default=100.0)  # goal achievement reward
-        self.distance_reward = self.config_env.get("env.distance_reward", default=5.0)  # distance reward
-        self.timestep_penalty = self.config_env.get("env.timestep_penalty", default=-2.0)  # per-timestep penalty
+        try:
+            self.goal_reward = self.config_env.get("env.goal_reward", default=100.0)  # goal achievement reward
+            self.distance_reward = self.config_env.get("env.distance_reward", default=5.0)  # distance reward
+            self.timestep_penalty = self.config_env.get("env.timestep_penalty", default=-2.0)  # per-timestep penalty
+        except KeyError as e:
+            self.goal_reward = 100.0
+            self.distance_reward = 5.0
+            self.timestep_penalty = -2.0
 
         # Additional penalties
-        self.emergency_penalty = self.config_env.get("env.emergency_penalty", default=-5.0)
-        self.collision_penalty = self.config_env.get("env.collision_penalty", default=-80.0)
-        self.boundary_penalty = self.config_env.get("env.boundary_penalty", default=-5.0)
-        self.decay_factor = self.config_env.get("env.decay_factor", default=-0.05)
+        try:
+            self.emergency_penalty = self.config_env.get("env.emergency_penalty", default=-5.0)
+            self.collision_penalty = self.config_env.get("env.collision_penalty", default=-80.0)
+            self.boundary_penalty = self.config_env.get("env.boundary_penalty", default=-5.0)
+            self.decay_factor = self.config_env.get("env.decay_factor", default=-0.05)
+        except KeyError as e:
+            self.emergency_penalty = -5.0
+            self.collision_penalty = -80.0
+            self.boundary_penalty = -5.0
+            self.decay_factor = -0.05
 
         # Global cooperation rewards
-        self.evenly_distributed_reward = self.config_env.get("env.evenly_distributed_reward",
-                                                             default=5.0)  # optimal pursuer distribution reward
-        self.unevenly_distributed_reward = self.config_env.get("env.unevenly_distributed_reward",
-                                                               default=-10.0)  # excessive clustering penalty
-
-        # Distance parameters
-        self.capture_distance = self.config_env.get("env.capture_distance", default=8.0)  # capture distance
-        self.related_distance = self.config_env.get("env.related_distance", default=18.0)  # cooperation initiation distance
+        try:
+            self.evenly_distributed_reward = self.config_env.get("env.evenly_distributed_reward",
+                                                                default=5.0)  # optimal pursuer distribution reward
+            self.unevenly_distributed_reward = self.config_env.get("env.unevenly_distributed_reward",
+                                                                default=-10.0)  # excessive clustering penalty
+            # Distance parameters
+            self.capture_distance = self.config_env.get("env.capture_distance", default=8.0)  # capture distance
+            self.related_distance = self.config_env.get("env.related_distance", default=18.0)  # cooperation initiation distance
+        except KeyError as e:
+            self.evenly_distributed_reward = 5.0
+            self.unevenly_distributed_reward = -10.0
+            self.capture_distance = 8.0
+            self.related_distance = 18.0
 
         # Entity counts
         self.num_cores = 8  # number of vortex cores
@@ -180,7 +208,8 @@ class MarineEnv(gym.Env):
         # Curriculum learning parameters
         self.schedule = schedule  # curriculum schedule
         self.episode_time_steps = 0  # current episode timesteps
-        self.episode_max_length = self.config_env.get("training.episode_max_length", default=3000)  # max episode length
+        # self.episode_max_length = self.config_env.get("training.episode_max_length", default=3000)  # max episode length
+        self.episode_max_length = 3000
         self.total_time_steps = 0  # total training timesteps
 
         # Observation parameters
@@ -239,7 +268,7 @@ class MarineEnv(gym.Env):
 
         # Generate evaders first
         num_evaders = 0
-        iteration = 50000
+        iteration = 500000
         while True:
             # Evader start positions away from boundaries
             evader_start = self.rd.uniform(low=15.0 * np.ones(2),
@@ -251,7 +280,7 @@ class MarineEnv(gym.Env):
                 self.reset_robot(evader)
                 self.evaders.append(evader)
                 num_evaders += 1
-            if iteration == 0 or num_evaders == self.num_evaders:
+            if iteration == 0 or len(self.evaders) == self.num_evaders:
                 if num_evaders == self.num_evaders:
                     break
                 else:
@@ -260,7 +289,7 @@ class MarineEnv(gym.Env):
 
         # Generate pursuers
         num_pursuers = 0
-        iteration = 8000
+        iteration = 8000000
         while True:
             # Pursuer start positions
             pursuer_start = self.rd.uniform(low=2.0 * np.ones(2),
@@ -272,7 +301,7 @@ class MarineEnv(gym.Env):
                 self.reset_robot(pursuer)
                 self.pursuers.append(pursuer)
                 num_pursuers += 1
-            if iteration == 0 or num_pursuers == self.num_pursuers:
+            if iteration == 0 or len(self.pursuers) == self.num_pursuers:
                 if num_pursuers == self.num_pursuers:
                     break
                 else:

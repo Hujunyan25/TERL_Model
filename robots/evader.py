@@ -26,10 +26,12 @@ class Evader(Robot):
         # Evader-specific attributes (new attributes or overridden base class attributes)
         self.eva_config = ConfigManager.get_instance()
         self.robot_type = "evader"
-        self.max_speed = self.eva_config.get("evader.max_speed", default=3.0)
-        self.a = self.eva_config.get("evader.a", default=np.array([-0.4, 0.0, 0.4]))
-        self.w = self.eva_config.get("evader.w", default=np.array(
-            [-0.5235987755982988, -0.2617993877991494, 0.0, 0.2617993877991494, 0.5235987755982988]))
+        # self.max_speed = self.eva_config.get("evader.max_speed", default=3.0)
+        self.max_speed = 3.0
+        # self.a = self.eva_config.get("evader.a", default=np.array([-0.4, 0.0, 0.4]))
+        self.a = np.array([-0.4, 0.0, 0.4])
+        # self.w = self.eva_config.get("evader.w", default=np.array([-0.5235987755982988, -0.2617993877991494, 0.0, 0.2617993877991494, 0.5235987755982988]))
+        self.w = np.array([-0.5235987755982988, -0.2617993877991494, 0.0, 0.2617993877991494, 0.5235987755982988])
         self.perception = Perception(is_evader=True)  # Override perception in subclass
 
         # Precomputed values

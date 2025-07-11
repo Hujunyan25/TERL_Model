@@ -41,16 +41,20 @@ class Pursuer(Robot):
         self.robot_type = "pursuer"
         self.capture_event_count = 0
 
-        self.max_speed = self.pur_config.get("pursuer.max_speed", default=3.0)
-        self.a = self.pur_config.get("pursuer.a", default=np.array([-0.4, 0.0, 0.4]))
-        self.w = self.pur_config.get("pursuer.w", default=np.array([-0.5235987755982988, 0.0, 0.5235987755982988]))
+        # self.max_speed = self.pur_config.get("pursuer.max_speed", default=3.0)
+        self.max_speed = 3.0
+        # self.a = self.pur_config.get("pursuer.a", default=np.array([-0.4, 0.0, 0.4]))
+        self.a = np.array([-0.4, 0.0, 0.4])
+        # self.w = self.pur_config.get("pursuer.w", default=np.array([-0.5235987755982988, 0.0, 0.5235987755982988]))
+        self.w = np.array([-0.5235987755982988, 0.0, 0.5235987755982988])
         self.perception = Perception(is_evader=False)
 
         self.captured_evaderId_list: List[int] = []  # List of captured evaders
         self.is_current_target_captured = False  # Whether the current target has been captured
         self.is_pursuing = False  # Whether the pursuer is actively pursuing
 
-        self.distance_capture = self.pur_config.get("env.capture_distance", default=8.0)  # Capture range threshold
+        # self.distance_capture = self.pur_config.get("env.capture_distance", default=8.0)  # Capture range threshold
+        self.distance_capture = 8.0
         self.angle_capture = np.pi  # Minimum encirclement angle required for capture
 
         # Precomputed values
@@ -212,7 +216,7 @@ class Pursuer(Robot):
                     f"capture_event_{self.capture_event_count}/helper_{idx}/y": p.y,
                 })
 
-            wandb.log(capture_metrics)
+            # wandb.log(capture_metrics)
             self.capture_event_count += 1
 
             return True, adjacent_angles, len(nearby_pursuers), evader.id

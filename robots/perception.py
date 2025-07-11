@@ -37,7 +37,8 @@ class Perception:
         self.angle = 2 * np.pi  # Perception angle range (radians)
         self.max_obstacle_num = 5  # Maximum number of obstacles considered
         self.max_pursuer_num = 5  # Maximum number of pursuers considered
-        self.max_evader_num = self.perception_config.get("perception.max_evader_num") if not is_evader else 5 # Maximum number of evaders considered
+        # self.max_evader_num = self.perception_config.get("perception.max_evader_num") if not is_evader else 5 # Maximum number of evaders considered
+        self.max_evader_num = 5
         self.observation = self.observation_format(is_evader)
         self.observed_obstacles = []  # List of indices of observed obstacles
         self.observed_pursuers = []  # List of indices of observed pursuers
