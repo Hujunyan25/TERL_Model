@@ -31,6 +31,8 @@ class generate_video():
     def evaluation(self, pursuer_state, evader_state, agent, evader_agent, eval_env:MarineEnv, use_rl=True, use_iqn=True, act_adaptive=True):
         """Evaluate performance of the agent.
         """
+        energies = [0.0]*self.eval_env.num_pursuers
+        times = [0.0]*self.eval_env.num_pursuers
         end_episode = False
         length = 0
         while not end_episode:
@@ -44,12 +46,7 @@ class generate_video():
                     if use_iqn:
                         if act_adaptive:
                             a, _, _, _ = agent.act_adaptive(pursuer_state[i])
-                        else:
-                            a, _, _ = agent.act(pursuer_state[i])
-                    else:
-                        a, _ = agent.act_dqn(pursuer_state[i])
-                else:
-                    a = agent.act(pursuer_state[i])
+
                 action.append(a)
             evaders_action = []
             for j, evader in enumerate(eval_env.evaders):
@@ -66,18 +63,21 @@ class generate_video():
                 if rob.deactivated:
                     continue
                 assert rob.robot_type == 'pursuer', "Every robot must be pursuer!"
+                
+                times[i] += rob.dt * rob.N
+                energies[i] +=  rob.compute_action_energy_cost(action[i])
                 if rob.collision:
                     rob.deactivated = True
             end_episode = (length >= 1000) or len([pursuer for pursuer in eval_env.pursuers if
                                                 not pursuer.deactivated]) < 3 or eval_env.check_all_evader_is_captured()
             length += 1
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
-        return trajectories
+        return trajectories, energies,times
     
 
     def run_experiment(self):
         eavl_configs = self.eval_env.episode_data()
-        trajectories = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
+        trajectories,energies,times = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
         dt = datetime.now()
         create_timestamp = dt.strftime("%H-%M-%S")
         save_dir = os.path.join(self.project_root, "photos")
@@ -118,7 +118,7 @@ class generate_video():
             for image in images:
                 video.write(cv2.imread(os.path.join(save_dir,image)))
             video.release() #释放资源
-            return video_path
+            return video_path,energies,times
 
 
     def generate_hsv_colors(self, num_colors):

@@ -9,6 +9,8 @@ from uav_mainwindow import Ui_MainWindow
 from model_eval import generate_video
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl
+from PyQt5.QtMultimediaWidgets import QVideoWidget
+import numpy as np
 
 
 
@@ -17,15 +19,28 @@ class Apply(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
+        # 1. 初始化媒体播放器
+        self.media_player = QMediaPlayer(self, QMediaPlayer.VideoSurface)
+        self.video_widget = QVideoWidget(self)  # 视频显示控件
+        
+        self.imgDisplayLabel.setStyleSheet("background: white;")  # 背景设为白色
+        self.video_widget.setParent(self.imgDisplayLabel)  # 放到 QLabel 里
+
+        self.video_widget.resize(self.imgDisplayLabel.size())  # 适配大小
+
         # 连接 Apply 按钮的点击信号到自定义槽函数
         self.ApplyButton.clicked.connect(self.on_apply_clicked)
         # 关联播放器与显示控件
         self.media_player.setVideoOutput(self.video_widget)
+        #界面切换按钮
+        self.switch_button.clicked.connect(self.switch_page)
         # 4. 绑定按钮事件
         # self.Play_Button.clicked.connect(self.load_video)
 
         self.Stop_Button.clicked.connect(self.media_player.pause)
         self.Continue_Button.clicked.connect(self.media_player.play)
+
+
         
     def on_apply_clicked(self):
         # 1. 读取输入框内容
@@ -34,12 +49,36 @@ class Apply(QMainWindow, Ui_MainWindow):
         pursuer_perception = self.R_Perception_lineEdit.text()
         obstacle_num = self.Obstacle_Num_LineEdit.text()
         gv = generate_video(pursuer_num, evader_num, pursuer_perception, obstacle_num)
-        video_path = gv.run_experiment()
+        video_path,energies,times = gv.run_experiment()
         if video_path:
             # 3. 使用媒体播放器播放视频
+            #在第二个控件中绘制两张折线图
+            #第一张
+            self.energy_pursuer_graph_widget.clear()
+            left_axis = self.energy_pursuer_graph_widget.getAxis("left")
+            right_axis = self.energy_pursuer_graph_widget.getAxis("right")
+            left_axis.setLabel(text="Energy",color='red')
+            right_axis.setLabel(text="Time",color='blue')
+            x_axis = self.energy_pursuer_graph_widget.getAxis("bottom")
+            x_axis.setLabel(text="UAV_id")
+            self.energy_pursuer_graph_widget.plot(np.arange(len(energies)), energies, pen='r')
+            self.energy_pursuer_graph_widget.setLabels(left='energy', bottom='UAV_id')
+            #第二张
+            self.energy_pursuer_graph_widget.plot(np.arange(len(times)),times,pen='blue')
+            self.energy_pursuer_graph_widget.setLabels(right='times', bottom='UAV_id')
+            self.energy_pursuer_graph_widget.addLegend()
             media = QMediaContent(QUrl.fromLocalFile(video_path))
             self.media_player.setMedia(media)
             self.media_player.play()
+
+    def switch_page(self):
+        current_index = self.stackedWidget.currentIndex()
+        if current_index == 0:
+            self.stackedWidget.setCurrentIndex(1)
+        else:
+            self.stackedWidget.setCurrentIndex(0)
+
+    
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
