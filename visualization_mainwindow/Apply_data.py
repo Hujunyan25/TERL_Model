@@ -3,7 +3,7 @@ import sys,os
 model_eval_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # 将该目录添加到 sys.path
 sys.path.insert(0, model_eval_dir)
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
 # 导入转换后的 ui 类
 from uav_mainwindow import Ui_MainWindow 
 from model_eval import generate_video
@@ -22,7 +22,7 @@ class Apply(QMainWindow, Ui_MainWindow):
         # 1. 初始化媒体播放器
         self.media_player = QMediaPlayer(self, QMediaPlayer.VideoSurface)
         self.video_widget = QVideoWidget(self)  # 视频显示控件
-        
+        self.energy_pursuer_graph_widget.setBackground('w')
         self.imgDisplayLabel.setStyleSheet("background: white;")  # 背景设为白色
         self.video_widget.setParent(self.imgDisplayLabel)  # 放到 QLabel 里
 
@@ -34,8 +34,6 @@ class Apply(QMainWindow, Ui_MainWindow):
         self.media_player.setVideoOutput(self.video_widget)
         #界面切换按钮
         self.switch_button.clicked.connect(self.switch_page)
-        # 4. 绑定按钮事件
-        # self.Play_Button.clicked.connect(self.load_video)
 
         self.Stop_Button.clicked.connect(self.media_player.pause)
         self.Continue_Button.clicked.connect(self.media_player.play)
@@ -49,10 +47,23 @@ class Apply(QMainWindow, Ui_MainWindow):
         pursuer_perception = self.R_Perception_lineEdit.text()
         obstacle_num = self.Obstacle_Num_LineEdit.text()
         gv = generate_video(pursuer_num, evader_num, pursuer_perception, obstacle_num)
-        video_path,energies,times = gv.run_experiment()
+        video_path,energies,times,execution_time, pursuer_captured_Id = gv.run_experiment()
+        self.show_time_edit.setText(f"{execution_time:.2f}s")
+        self.show_encircle_rate_edit.setText(f"100%")
+        self.tableWidget.setRowCount(0)  
+        
+        for row_idx, row_data in enumerate(pursuer_captured_Id):
+            if row_data == []:
+                continue  
+            row_position = self.tableWidget.rowCount() 
+            #插入新行
+            self.tableWidget.insertRow(row_position)
+            self.tableWidget.setItem(row_position, 0, QTableWidgetItem(str(row_idx)))
+            item = QTableWidgetItem(str(row_data))
+            self.tableWidget.setItem(row_position, 1, item)
+
         if video_path:
             # 3. 使用媒体播放器播放视频
-            #在第二个控件中绘制两张折线图
             #第一张
             self.energy_pursuer_graph_widget.clear()
             left_axis = self.energy_pursuer_graph_widget.getAxis("left")
@@ -63,7 +74,7 @@ class Apply(QMainWindow, Ui_MainWindow):
             x_axis.setLabel(text="UAV_id")
             self.energy_pursuer_graph_widget.plot(np.arange(len(energies)), energies, pen='r')
             self.energy_pursuer_graph_widget.setLabels(left='energy', bottom='UAV_id')
-            #第二张
+
             self.energy_pursuer_graph_widget.plot(np.arange(len(times)),times,pen='blue')
             self.energy_pursuer_graph_widget.setLabels(right='times', bottom='UAV_id')
             self.energy_pursuer_graph_widget.addLegend()
@@ -77,6 +88,8 @@ class Apply(QMainWindow, Ui_MainWindow):
             self.stackedWidget.setCurrentIndex(1)
         else:
             self.stackedWidget.setCurrentIndex(0)
+            self.media_player.pause()
+
 
     
 

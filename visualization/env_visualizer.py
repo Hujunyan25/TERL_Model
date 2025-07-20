@@ -152,29 +152,7 @@ class EnvVisualizer:
             env_configs (list, optional): List of environment configurations, defaults to None.
         """
         # initialize subplot for the map, robot state and sensor measurements
-        if self.draw_envs:
-            # Mode 2: plot the environment
-            if env_configs is None:
-                self.fig, self.axis_graph = plt.subplots(1, 1, figsize=(8, 8))
-            else:
-                num = len(env_configs)
-                if num % 3 == 0:
-                    self.fig, self.axis_graphs = plt.subplots(int(num / 3), 3, figsize=(8 * 3, 8 * int(num / 3)))
-                else:
-                    self.fig, self.axis_graphs = plt.subplots(1, num, figsize=(8 * num, 8))
-        elif self.draw_traj:
-            if self.plot_dist:
-                self.fig = plt.figure(figsize=(24, 16))
-                spec = self.fig.add_gridspec(5, 6)
-
-                self.axis_graph = self.fig.add_subplot(spec[:, :4])
-                self.axis_perception = self.fig.add_subplot(spec[:2, 4:])
-                self.axis_dist.append(self.fig.add_subplot(spec[2:, 4]))
-                self.axis_dist.append(self.fig.add_subplot(spec[2:, 5]))
-            else:
-                # Mode 3: plot final trajectories given action sequences
-                self.fig, self.axis_graph = plt.subplots(figsize=(16, 16))
-        elif self.video_plots:
+        if self.video_plots:
             # Mode 4: Generate 1080p video plots
             w = 1920
             h = 1080
@@ -190,54 +168,7 @@ class EnvVisualizer:
 
                 self.axis_perception = self.fig.add_subplot(spec[1:3, 8:])
                 # self.axis_dist.append(self.fig.add_subplot(spec[2:, 9:11]))
-            elif self.agent_name == "IQN":
-                spec = self.fig.add_gridspec(5, 12)
 
-                self.axis_graph = self.fig.add_subplot(spec[:, :8])
-                self.axis_graph.set_title("IQN performance", fontweight="bold", fontsize=30)
-                self.axis_perception = self.fig.add_subplot(spec[1:3, 8:])
-            elif self.agent_name == "MEAN":
-                spec = self.fig.add_gridspec(5, 12)
-
-                self.axis_graph = self.fig.add_subplot(spec[:, :8])
-                self.axis_graph.set_title("MEAN performance", fontweight="bold", fontsize=30)
-                self.axis_perception = self.fig.add_subplot(spec[1:3, 8:])
-            elif self.agent_name == "DQN":
-                spec = self.fig.add_gridspec(5, 12)
-
-                self.axis_graph = self.fig.add_subplot(spec[:, :8])
-                self.axis_graph.set_title("DQN performance", fontweight="bold", fontsize=30)
-                self.axis_perception = self.fig.add_subplot(spec[1:3, 8:])
-        else:
-            # Mode 1 (default): Display an episode
-            # self.fig = plt.figure(figsize=(32, 16))
-            self.fig = plt.figure(figsize=(25.6, 14.4))
-            # Divide the figure into a 6x6 grid
-            spec = self.fig.add_gridspec(6, 6)
-
-            # The first plot occupies all 6 rows and the first 5 columns
-            self.axis_graph = self.fig.add_subplot(spec[:, :5])
-
-            # Other plots can be placed in the remaining columns, e.g., a portion of column 6
-            # Customize the position of the second plot, e.g., rows 2 to 4, column 6
-            # self.axis_goal = self.fig.add_subplot(spec[0,2])
-            self.axis_perception = self.fig.add_subplot(spec[2:4, 5])
-
-            # self.axis_dvl = self.fig.add_subplot(spec[3:,2])
-            # self.axis_observation = self.fig.add_subplot(spec[:,3])
-
-            # ## temp for plotting head figure ###
-            # self.fig, self.axis_graph = plt.subplots(1,1,figsize=(16,16))
-            # # self.fig, self.axis_perception = plt.subplots(1,1,figsize=(8,8))
-
-        if self.draw_envs and env_configs is not None:
-            for i, env_config in enumerate(env_configs):
-                self.load_env_config(env_config)
-                if len(env_configs) % 3 == 0:
-                    self.plot_graph(self.axis_graphs[int(i / 3), i % 3])
-                else:
-                    self.plot_graph(self.axis_graphs[i])
-        else:
             self.plot_graph(self.axis_graph)
 
     def plot_graph(self, axis):

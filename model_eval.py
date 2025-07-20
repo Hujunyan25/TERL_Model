@@ -1,6 +1,7 @@
 import copy
 import colorsys
 import os,sys
+import time
 from environment.env import MarineEnv
 from policy.agent import Agent
 from thirdparty.APF import ApfAgent
@@ -35,6 +36,7 @@ class generate_video():
         times = [0.0]*self.eval_env.num_pursuers
         end_episode = False
         length = 0
+        start_time = time.perf_counter()
         while not end_episode:
             action = []
             for i, rob in enumerate(eval_env.pursuers):
@@ -71,13 +73,16 @@ class generate_video():
             end_episode = (length >= 1000) or len([pursuer for pursuer in eval_env.pursuers if
                                                 not pursuer.deactivated]) < 3 or eval_env.check_all_evader_is_captured()
             length += 1
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
-        return trajectories, energies,times
+        pursuer_captured_Id = [pursuer.captured_evaderId_list for pursuer in self.eval_env.pursuers]
+        return trajectories, energies,times,execution_time, pursuer_captured_Id
     
 
     def run_experiment(self):
         eavl_configs = self.eval_env.episode_data()
-        trajectories,energies,times = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
+        trajectories,energies,times,execution_time, pursuer_captured_Id = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
         dt = datetime.now()
         create_timestamp = dt.strftime("%H-%M-%S")
         save_dir = os.path.join(self.project_root, "photos")
@@ -98,6 +103,8 @@ class generate_video():
         ev.agent_name = "TERL"
         ev.env.reset_with_eval_config(eavl_configs)
         ev.init_visualize()
+        #这里可以添加初始的一张照片
+        
         colors = self.generate_hsv_colors(120)
         ev.draw_video_plots(trajectories=trajectories,colors=colors, save_dir=save_dir)
 
@@ -118,7 +125,7 @@ class generate_video():
             for image in images:
                 video.write(cv2.imread(os.path.join(save_dir,image)))
             video.release() #释放资源
-            return video_path,energies,times
+            return video_path,energies,times,execution_time, pursuer_captured_Id
 
 
     def generate_hsv_colors(self, num_colors):
