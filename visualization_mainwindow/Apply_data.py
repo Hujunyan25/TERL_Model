@@ -24,8 +24,6 @@ class Apply(QMainWindow, Ui_MainWindow):
         self.media_player = QMediaPlayer(self, QMediaPlayer.VideoSurface)
         self.video_widget = QVideoWidget(self)  # 视频显示控件
         self.energy_pursuer_graph_widget.setBackground('w')
-        self.speed_graph_widget.setBackground('w')
-        self.angle_graph_widget.setBackground('w')
         self.imgDisplayLabel.setStyleSheet("background: white;")  # 背景设为白色
         self.video_widget.setParent(self.imgDisplayLabel)  # 放到 QLabel 里
 
@@ -45,13 +43,40 @@ class Apply(QMainWindow, Ui_MainWindow):
         
     def on_apply_clicked(self):
         # 1. 读取输入框内容
-        pursuer_catch_evader_list = []
         pursuer_num = self.Pursuer_Num_LineEdit.text()
         evader_num = self.Evader_Num_LineEdit.text()
         pursuer_perception = self.R_Perception_lineEdit.text()
         obstacle_num = self.Obstacle_Num_LineEdit.text()
         gv = generate_video(pursuer_num, evader_num, pursuer_perception, obstacle_num)
-        video_path,energies,times,execution_time, pursuer_captured_Id,pursuer_a_list, pursuer_w_list = gv.run_experiment()
+        a_list = []
+        w_list = []
+        video_path,energies,times,execution_time, pursuer_captured_Id,pursuer_a_list, w_list = gv.run_experiment()
+        for i in pursuer_a_list:
+            if i==[]:
+                continue
+            for j in range(len(i)):  
+                i[j] = float(i[j]) 
+
+        for j in w_list:
+            if j==[]:
+                continue
+            for l in range(len(j)):
+                j[l] = float(j[l])
+                
+        pi_over_6 = np.pi / 6
+        # 创建替换后的新列表
+        pursuer_w_list = []
+        for i in w_list:
+            append_list = []
+            for num in i:
+                if np.isclose(num, -pi_over_6, atol=1e-8):  # 检查是否接近 -π/6
+                    append_list.append('-π/6')
+                elif np.isclose(num, pi_over_6, atol=1e-8):  # 检查是否接近 π/6
+                    append_list.append('π/6')
+                else:
+                    append_list.append('0')  # 保持其他数值不变
+            pursuer_w_list.append(append_list)
+        
         self.show_time_edit.setText(f"{execution_time:.2f}s")
         self.show_encircle_rate_edit.setText(f"100%")
         self.tableWidget.setRowCount(0)  
@@ -63,9 +88,12 @@ class Apply(QMainWindow, Ui_MainWindow):
             #插入新行
             self.tableWidget.insertRow(row_position)
             self.tableWidget.setItem(row_position, 0, QTableWidgetItem(str(row_idx)))
-            pursuer_catch_evader_list.append(row_idx)
-            item = QTableWidgetItem(str(row_data))
-            self.tableWidget.setItem(row_position, 1, item)
+            item_evader_set = QTableWidgetItem(str(row_data))
+            self.tableWidget.setItem(row_position, 1, item_evader_set)
+            item_a_set = QTableWidgetItem(str(pursuer_a_list[row_idx]))
+            self.tableWidget.setItem(row_position, 2, QTableWidgetItem(item_a_set))
+            item_w_set = QTableWidgetItem(str(pursuer_w_list[row_idx]))
+            self.tableWidget.setItem(row_position, 3, QTableWidgetItem(item_w_set))
 
         if video_path:
             # 3. 使用媒体播放器播放视频
@@ -82,29 +110,6 @@ class Apply(QMainWindow, Ui_MainWindow):
             self.energy_pursuer_graph_widget.plot(np.arange(len(times)),times,pen='blue')
             self.energy_pursuer_graph_widget.setLabels(right='times', bottom='UAV_id')
             self.energy_pursuer_graph_widget.addLegend()
-            #第二张
-            self.speed_graph_widget.clear()
-            left_axis = self.speed_graph_widget.getAxis("left")
-            left_axis.setLabel(text="Linear acceleration",color='black')
-            x_axis = self.speed_graph_widget.getAxis("bottom")
-            x_axis.setLabel(text="Time",color='black')
-            
-            for i, sublist in enumerate(pursuer_a_list):
-                if i not in pursuer_catch_evader_list:
-                    continue
-                self.speed_graph_widget.plot(np.arange(len(sublist)),sublist, pen=mkPen(color=i, width=1.5))
-
-            #第三张
-            self.angle_graph_widget.clear()
-            left_axis = self.angle_graph_widget.getAxis("left")
-            left_axis.setLabel(text="angular acceleration",color='black')
-            x_axis = self.angle_graph_widget.getAxis("bottom")
-            x_axis.setLabel(text="Time",color='black')
-            
-            for i, sublist in enumerate(pursuer_w_list):
-                if i not in pursuer_catch_evader_list:
-                    continue
-                self.angle_graph_widget.plot(np.arange(len(sublist)),sublist, pen=mkPen(color=i, width=1.5))
 
             media = QMediaContent(QUrl.fromLocalFile(video_path))
             self.media_player.setMedia(media)

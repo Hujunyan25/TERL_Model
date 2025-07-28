@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'double-window.ui'
+# Form implementation generated from reading ui file 'double-window-shidi.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -14,14 +14,122 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(761, 606)
-        MainWindow.setStyleSheet("QMainWindow {\n"
-"    background-color: white;\n"
+        MainWindow.resize(793, 657)
+        MainWindow.setStyleSheet("/* ===== 全局字体和背景 ===== */\n"
+"QMainWindow, QDialog {\n"
+"    background-color: #f0f2f5; /* 非常浅的灰色背景，比纯白更有质感 */\n"
+"    font-family: \"Segoe UI\", \"Microsoft YaHei\", \"Helvetica Neue\", sans-serif; /* 使用更现代的字体 */\n"
+"}\n"
+"\n"
+"/* ===== 视频显示区 ===== */\n"
+"#imgDisplayLabel {\n"
+"    background-color: #ffffff; /* 纯白背景 */\n"
+"    border: 1px solid #dcdfe6; /* 浅灰色边框 */\n"
+"    border-radius: 8px; /* 圆角可以大一点，显得更柔和 */\n"
+"}\n"
+"\n"
+"/* ===== 控制面板 (QGroupBox) ===== */\n"
+"QGroupBox {\n"
+"    background-color: #ffffff; /* 面板背景也是纯白 */\n"
+"    border: 1px solid #dcdfe6;\n"
+"    border-radius: 8px;\n"
+"    margin-top: 25px; /* 给标题留出足够空间 */\n"
+"    font-size: 11pt; /* 字体可以稍微大一点 */\n"
+"}\n"
+"\n"
+"/* 控制面板的标题样式 - 标签(Chip)版 */\n"
+"QGroupBox::title {\n"
+"    subcontrol-origin: margin;\n"
+"    subcontrol-position: top left;\n"
+"    margin-left: 15px;\n"
+"    padding: 4px 12px; /* 上下4px, 左右12px的内边距 */\n"
+"    \n"
+"    /* 关键部分在这里 */\n"
+"    background-color: #e8eef8; /* 一个非常淡的蓝色，与主题呼应 */\n"
+"    border-radius: 4px; /* 轻微的圆角 */\n"
+"    color: #409eff; /* 文字颜色使用主题的主蓝色 */\n"
+"    font-weight: bold;\n"
+"    font-size: 10pt; /* 可以稍微调整字号 */\n"
+"}\n"
+"\n"
+"/* ===== 面板内的控件 ===== */\n"
+"\n"
+"/* 标签样式 (QLabel) */\n"
+"QGroupBox QLabel {\n"
+"    color: #606266; /* 次要文字用灰色 */\n"
+"    background-color: transparent;\n"
+"    font-size: 10pt;\n"
+"}\n"
+"\n"
+"/* 输入框样式 (QLineEdit) */\n"
+"QGroupBox QLineEdit {\n"
+"    background-color: #fdfdfe;\n"
+"    color: #303133; /* 主要文字用深灰色 */\n"
+"    border: 1px solid #dcdfe6;\n"
+"    border-radius: 4px;\n"
+"    padding: 6px;\n"
+"    font-size: 10pt;\n"
+"}\n"
+"QGroupBox QLineEdit:focus {\n"
+"    border: 1px solid #409eff; /* 焦点颜色使用明亮的蓝色 */\n"
+"    background-color: #ffffff;\n"
+"}\n"
+"QGroupBox QLineEdit:disabled {\n"
+"    background-color: #f5f7fa; /* 禁用状态的颜色 */\n"
+"    color: #c0c4cc;\n"
+"}\n"
+"\n"
+"\n"
+"/* ===== 按钮样式 (QPushButton) ===== */\n"
+"\n"
+"/* 默认按钮样式 (蓝色) */\n"
+"QGroupBox QPushButton {\n"
+"    background-color: #409eff; /* 主按钮颜色 - 亮蓝色 */\n"
+"    color: white;\n"
+"    border: none;\n"
+"    padding: 8px 20px;\n"
+"    border-radius: 4px;\n"
+"    font-size: 10pt;\n"
+"    font-weight: 500;\n"
+"}\n"
+"QGroupBox QPushButton:hover {\n"
+"    background-color: #66b1ff; /* 悬停时更亮 */\n"
+"}\n"
+"QGroupBox QPushButton:pressed {\n"
+"    background-color: #3a8ee6; /* 按下时更深 */\n"
+"}\n"
+"\n"
+"\n"
+"/* \"继续\" 按钮的特定样式 (绿色) */\n"
+"#Continue_Button {\n"
+"    background-color: #67c23a; /* 成功的绿色 */\n"
+"    color: white;\n"
+"    border: none;\n"
+"}\n"
+"#Continue_Button:hover {\n"
+"    background-color: #85ce61;\n"
+"}\n"
+"#Continue_Button:pressed {\n"
+"    background-color: #5daf34;\n"
+"}\n"
+"\n"
+"\n"
+"/* \"暂停\" 按钮的特定样式 (红色) */\n"
+"#Stop_Button {\n"
+"    background-color: #f56c6c; /* 警告的红色 */\n"
+"    color: white;\n"
+"    border: none;\n"
+"}\n"
+"#Stop_Button:hover {\n"
+"    background-color: #f78989;\n"
+"}\n"
+"#Stop_Button:pressed {\n"
+"    background-color: #f35252;\n"
 "}")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.stackedWidget = QtWidgets.QStackedWidget(self.centralwidget)
-        self.stackedWidget.setGeometry(QtCore.QRect(0, 20, 761, 541))
+        self.stackedWidget.setGeometry(QtCore.QRect(0, 20, 751, 591))
         font = QtGui.QFont()
         font.setPointSize(8)
         self.stackedWidget.setFont(font)
@@ -29,7 +137,7 @@ class Ui_MainWindow(object):
         self.page = QtWidgets.QWidget()
         self.page.setObjectName("page")
         self.imgDisplayLabel = QtWidgets.QLabel(self.page)
-        self.imgDisplayLabel.setGeometry(QtCore.QRect(20, 20, 710, 400))
+        self.imgDisplayLabel.setGeometry(QtCore.QRect(50, 30, 656, 369))
         self.imgDisplayLabel.setStyleSheet("QLabel {\n"
 "    min-width: 640px;\n"
 "    min-height: 360px;\n"
@@ -38,86 +146,64 @@ class Ui_MainWindow(object):
 "}")
         self.imgDisplayLabel.setScaledContents(True)
         self.imgDisplayLabel.setObjectName("imgDisplayLabel")
-        self.Stop_Button = QtWidgets.QPushButton(self.page)
-        self.Stop_Button.setGeometry(QtCore.QRect(100, 430, 91, 31))
+        self.groupBox = QtWidgets.QGroupBox(self.page)
+        self.groupBox.setGeometry(QtCore.QRect(30, 440, 701, 151))
+        self.groupBox.setObjectName("groupBox")
+        self.gridLayout_3 = QtWidgets.QGridLayout(self.groupBox)
+        self.gridLayout_3.setObjectName("gridLayout_3")
+        self.gridLayout = QtWidgets.QGridLayout()
+        self.gridLayout.setObjectName("gridLayout")
+        self.label = QtWidgets.QLabel(self.groupBox)
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label.setFont(font)
+        self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 1, 4, 1, 1)
+        self.Obstacle_Num_Label = QtWidgets.QLabel(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Stop_Button.sizePolicy().hasHeightForWidth())
-        self.Stop_Button.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.Obstacle_Num_Label.sizePolicy().hasHeightForWidth())
+        self.Obstacle_Num_Label.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(11)
-        self.Stop_Button.setFont(font)
-        self.Stop_Button.setObjectName("Stop_Button")
-        self.Continue_Button = QtWidgets.QPushButton(self.page)
-        self.Continue_Button.setGeometry(QtCore.QRect(350, 430, 91, 31))
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(12)
-        self.Continue_Button.setFont(font)
-        self.Continue_Button.setObjectName("Continue_Button")
-        self.horizontalLayoutWidget_2 = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget_2.setGeometry(QtCore.QRect(0, 470, 311, 31))
-        self.horizontalLayoutWidget_2.setObjectName("horizontalLayoutWidget_2")
-        self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_2)
-        self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.Pursuer_Num_Label_2 = QtWidgets.QLabel(self.horizontalLayoutWidget_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Pursuer_Num_Label_2.sizePolicy().hasHeightForWidth())
-        self.Pursuer_Num_Label_2.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(12)
-        self.Pursuer_Num_Label_2.setFont(font)
-        self.Pursuer_Num_Label_2.setObjectName("Pursuer_Num_Label_2")
-        self.horizontalLayout_2.addWidget(self.Pursuer_Num_Label_2)
-        self.Pursuer_Num_LineEdit = QtWidgets.QLineEdit(self.horizontalLayoutWidget_2)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Pursuer_Num_LineEdit.sizePolicy().hasHeightForWidth())
-        self.Pursuer_Num_LineEdit.setSizePolicy(sizePolicy)
-        self.Pursuer_Num_LineEdit.setObjectName("Pursuer_Num_LineEdit")
-        self.horizontalLayout_2.addWidget(self.Pursuer_Num_LineEdit)
-        self.horizontalLayoutWidget = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget.setGeometry(QtCore.QRect(320, 470, 291, 31))
-        self.horizontalLayoutWidget.setObjectName("horizontalLayoutWidget")
-        self.horizontalLayout = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget)
-        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        self.Evader_Num_Label = QtWidgets.QLabel(self.horizontalLayoutWidget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Evader_Num_Label.sizePolicy().hasHeightForWidth())
-        self.Evader_Num_Label.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(13)
-        font.setBold(False)
-        font.setWeight(50)
-        self.Evader_Num_Label.setFont(font)
-        self.Evader_Num_Label.setObjectName("Evader_Num_Label")
-        self.horizontalLayout.addWidget(self.Evader_Num_Label)
-        self.Evader_Num_LineEdit = QtWidgets.QLineEdit(self.horizontalLayoutWidget)
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.Obstacle_Num_Label.setFont(font)
+        self.Obstacle_Num_Label.setObjectName("Obstacle_Num_Label")
+        self.gridLayout.addWidget(self.Obstacle_Num_Label, 1, 2, 1, 1)
+        self.Evader_Num_LineEdit = QtWidgets.QLineEdit(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.Evader_Num_LineEdit.sizePolicy().hasHeightForWidth())
         self.Evader_Num_LineEdit.setSizePolicy(sizePolicy)
         self.Evader_Num_LineEdit.setObjectName("Evader_Num_LineEdit")
-        self.horizontalLayout.addWidget(self.Evader_Num_LineEdit)
-        self.horizontalLayoutWidget_3 = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget_3.setGeometry(QtCore.QRect(0, 500, 311, 41))
-        self.horizontalLayoutWidget_3.setObjectName("horizontalLayoutWidget_3")
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_3)
-        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.r_perception_label = QtWidgets.QLabel(self.horizontalLayoutWidget_3)
+        self.gridLayout.addWidget(self.Evader_Num_LineEdit, 0, 3, 1, 1)
+        self.R_Perception_lineEdit = QtWidgets.QLineEdit(self.groupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.R_Perception_lineEdit.sizePolicy().hasHeightForWidth())
+        self.R_Perception_lineEdit.setSizePolicy(sizePolicy)
+        self.R_Perception_lineEdit.setObjectName("R_Perception_lineEdit")
+        self.gridLayout.addWidget(self.R_Perception_lineEdit, 1, 1, 1, 1)
+        self.show_encircle_rate_edit = QtWidgets.QLineEdit(self.groupBox)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        self.show_encircle_rate_edit.setFont(font)
+        self.show_encircle_rate_edit.setReadOnly(True)
+        self.show_encircle_rate_edit.setObjectName("show_encircle_rate_edit")
+        self.gridLayout.addWidget(self.show_encircle_rate_edit, 0, 5, 1, 1)
+        self.show_time_edit = QtWidgets.QLineEdit(self.groupBox)
+        self.show_time_edit.setReadOnly(True)
+        self.show_time_edit.setObjectName("show_time_edit")
+        self.gridLayout.addWidget(self.show_time_edit, 1, 5, 1, 1)
+        self.r_perception_label = QtWidgets.QLabel(self.groupBox)
         self.r_perception_label.setEnabled(True)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -125,121 +211,151 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.r_perception_label.sizePolicy().hasHeightForWidth())
         self.r_perception_label.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(12)
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
         self.r_perception_label.setFont(font)
         self.r_perception_label.setObjectName("r_perception_label")
-        self.horizontalLayout_3.addWidget(self.r_perception_label)
-        self.R_Perception_lineEdit = QtWidgets.QLineEdit(self.horizontalLayoutWidget_3)
+        self.gridLayout.addWidget(self.r_perception_label, 1, 0, 1, 1)
+        self.Evader_Num_Label = QtWidgets.QLabel(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.R_Perception_lineEdit.sizePolicy().hasHeightForWidth())
-        self.R_Perception_lineEdit.setSizePolicy(sizePolicy)
-        self.R_Perception_lineEdit.setObjectName("R_Perception_lineEdit")
-        self.horizontalLayout_3.addWidget(self.R_Perception_lineEdit)
-        self.horizontalLayoutWidget_4 = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget_4.setGeometry(QtCore.QRect(320, 500, 291, 41))
-        self.horizontalLayoutWidget_4.setObjectName("horizontalLayoutWidget_4")
-        self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_4)
-        self.horizontalLayout_4.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_4.setObjectName("horizontalLayout_4")
-        self.Obstacle_Num_Label = QtWidgets.QLabel(self.horizontalLayoutWidget_4)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Obstacle_Num_Label.sizePolicy().hasHeightForWidth())
-        self.Obstacle_Num_Label.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.Evader_Num_Label.sizePolicy().hasHeightForWidth())
+        self.Evader_Num_Label.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(12)
-        self.Obstacle_Num_Label.setFont(font)
-        self.Obstacle_Num_Label.setObjectName("Obstacle_Num_Label")
-        self.horizontalLayout_4.addWidget(self.Obstacle_Num_Label)
-        self.Obstacle_Num_LineEdit = QtWidgets.QLineEdit(self.horizontalLayoutWidget_4)
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.Evader_Num_Label.setFont(font)
+        self.Evader_Num_Label.setObjectName("Evader_Num_Label")
+        self.gridLayout.addWidget(self.Evader_Num_Label, 0, 2, 1, 1)
+        self.Pursuer_Num_LineEdit = QtWidgets.QLineEdit(self.groupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.Pursuer_Num_LineEdit.sizePolicy().hasHeightForWidth())
+        self.Pursuer_Num_LineEdit.setSizePolicy(sizePolicy)
+        self.Pursuer_Num_LineEdit.setText("")
+        self.Pursuer_Num_LineEdit.setObjectName("Pursuer_Num_LineEdit")
+        self.gridLayout.addWidget(self.Pursuer_Num_LineEdit, 0, 1, 1, 1)
+        self.Obstacle_Num_LineEdit = QtWidgets.QLineEdit(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.Obstacle_Num_LineEdit.sizePolicy().hasHeightForWidth())
         self.Obstacle_Num_LineEdit.setSizePolicy(sizePolicy)
         self.Obstacle_Num_LineEdit.setObjectName("Obstacle_Num_LineEdit")
-        self.horizontalLayout_4.addWidget(self.Obstacle_Num_LineEdit)
-        self.ApplyButton = QtWidgets.QPushButton(self.page)
-        self.ApplyButton.setGeometry(QtCore.QRect(650, 420, 91, 31))
+        self.gridLayout.addWidget(self.Obstacle_Num_LineEdit, 1, 3, 1, 1)
+        self.label_2 = QtWidgets.QLabel(self.groupBox)
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.label_2.setFont(font)
+        self.label_2.setObjectName("label_2")
+        self.gridLayout.addWidget(self.label_2, 0, 4, 1, 1)
+        self.Pursuer_Num_Label_2 = QtWidgets.QLabel(self.groupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.Pursuer_Num_Label_2.sizePolicy().hasHeightForWidth())
+        self.Pursuer_Num_Label_2.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.Pursuer_Num_Label_2.setFont(font)
+        self.Pursuer_Num_Label_2.setObjectName("Pursuer_Num_Label_2")
+        self.gridLayout.addWidget(self.Pursuer_Num_Label_2, 0, 0, 1, 1)
+        self.gridLayout_3.addLayout(self.gridLayout, 1, 0, 1, 1)
+        self.gridLayout_2 = QtWidgets.QGridLayout()
+        self.gridLayout_2.setObjectName("gridLayout_2")
+        self.ApplyButton = QtWidgets.QPushButton(self.groupBox)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.ApplyButton.sizePolicy().hasHeightForWidth())
         self.ApplyButton.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
-        font.setPointSize(11)
+        font.setFamily("微软雅黑")
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(62)
         self.ApplyButton.setFont(font)
         self.ApplyButton.setObjectName("ApplyButton")
-        self.horizontalLayoutWidget_5 = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget_5.setGeometry(QtCore.QRect(620, 460, 141, 41))
-        self.horizontalLayoutWidget_5.setObjectName("horizontalLayoutWidget_5")
-        self.horizontalLayout_5 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_5)
-        self.horizontalLayout_5.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
-        self.label = QtWidgets.QLabel(self.horizontalLayoutWidget_5)
+        self.gridLayout_2.addWidget(self.ApplyButton, 0, 3, 1, 1)
+        self.Continue_Button = QtWidgets.QPushButton(self.groupBox)
         font = QtGui.QFont()
+        font.setFamily("微软雅黑")
         font.setPointSize(10)
-        self.label.setFont(font)
-        self.label.setObjectName("label")
-        self.horizontalLayout_5.addWidget(self.label)
-        self.show_time_edit = QtWidgets.QLineEdit(self.horizontalLayoutWidget_5)
-        self.show_time_edit.setReadOnly(True)
-        self.show_time_edit.setObjectName("show_time_edit")
-        self.horizontalLayout_5.addWidget(self.show_time_edit)
-        self.horizontalLayoutWidget_6 = QtWidgets.QWidget(self.page)
-        self.horizontalLayoutWidget_6.setGeometry(QtCore.QRect(620, 510, 141, 31))
-        self.horizontalLayoutWidget_6.setObjectName("horizontalLayoutWidget_6")
-        self.horizontalLayout_6 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_6)
-        self.horizontalLayout_6.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout_6.setObjectName("horizontalLayout_6")
-        self.label_2 = QtWidgets.QLabel(self.horizontalLayoutWidget_6)
+        font.setBold(True)
+        font.setWeight(62)
+        self.Continue_Button.setFont(font)
+        self.Continue_Button.setObjectName("Continue_Button")
+        self.gridLayout_2.addWidget(self.Continue_Button, 0, 1, 1, 1)
+        self.horizontalSlider = QtWidgets.QSlider(self.groupBox)
         font = QtGui.QFont()
+        font.setFamily("AcadEref")
+        font.setPointSize(8)
+        self.horizontalSlider.setFont(font)
+        self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
+        self.horizontalSlider.setObjectName("horizontalSlider")
+        self.gridLayout_2.addWidget(self.horizontalSlider, 0, 2, 1, 1)
+        self.Stop_Button = QtWidgets.QPushButton(self.groupBox)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.Stop_Button.sizePolicy().hasHeightForWidth())
+        self.Stop_Button.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
         font.setPointSize(10)
-        self.label_2.setFont(font)
-        self.label_2.setObjectName("label_2")
-        self.horizontalLayout_6.addWidget(self.label_2)
-        self.show_encircle_rate_edit = QtWidgets.QLineEdit(self.horizontalLayoutWidget_6)
-        self.show_encircle_rate_edit.setReadOnly(True)
-        self.show_encircle_rate_edit.setObjectName("show_encircle_rate_edit")
-        self.horizontalLayout_6.addWidget(self.show_encircle_rate_edit)
+        font.setBold(True)
+        font.setWeight(62)
+        self.Stop_Button.setFont(font)
+        self.Stop_Button.setObjectName("Stop_Button")
+        self.gridLayout_2.addWidget(self.Stop_Button, 0, 0, 1, 1)
+        self.gridLayout_3.addLayout(self.gridLayout_2, 0, 0, 1, 1)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.gridLayout_3.addItem(spacerItem, 2, 0, 1, 1)
         self.stackedWidget.addWidget(self.page)
         self.page_2 = QtWidgets.QWidget()
         self.page_2.setObjectName("page_2")
         self.energy_pursuer_graph_widget = PlotWidget(self.page_2)
-        self.energy_pursuer_graph_widget.setGeometry(QtCore.QRect(0, 20, 761, 221))
+        self.energy_pursuer_graph_widget.setGeometry(QtCore.QRect(30, 20, 701, 231))
         self.energy_pursuer_graph_widget.setStyleSheet("background-color: white;")
         self.energy_pursuer_graph_widget.setObjectName("energy_pursuer_graph_widget")
         self.tableWidget = QtWidgets.QTableWidget(self.page_2)
-        self.tableWidget.setGeometry(QtCore.QRect(10, 250, 211, 291))
+        self.tableWidget.setGeometry(QtCore.QRect(10, 270, 731, 291))
         self.tableWidget.setObjectName("tableWidget")
-        self.tableWidget.setColumnCount(2)
+        self.tableWidget.setColumnCount(4)
         self.tableWidget.setRowCount(0)
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(0, item)
         item = QtWidgets.QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(1, item)
-        self.tableWidget.horizontalHeader().setDefaultSectionSize(100)
+        item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(2, item)
+        item = QtWidgets.QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(3, item)
+        self.tableWidget.horizontalHeader().setDefaultSectionSize(140)
+        self.tableWidget.horizontalHeader().setMinimumSectionSize(25)
         self.tableWidget.verticalHeader().setVisible(False)
-        self.speed_graph_widget = PlotWidget(self.page_2)
-        self.speed_graph_widget.setGeometry(QtCore.QRect(230, 250, 521, 131))
-        self.speed_graph_widget.setStyleSheet("background-color: white;")
-        self.speed_graph_widget.setObjectName("speed_graph_widget")
-        self.angle_graph_widget = PlotWidget(self.page_2)
-        self.angle_graph_widget.setGeometry(QtCore.QRect(230, 390, 521, 151))
-        self.angle_graph_widget.setStyleSheet("background-color: white;")
-        self.angle_graph_widget.setObjectName("angle_graph_widget")
         self.stackedWidget.addWidget(self.page_2)
         self.switch_button = QtWidgets.QPushButton(self.centralwidget)
-        self.switch_button.setGeometry(QtCore.QRect(10, 0, 81, 23))
+        self.switch_button.setGeometry(QtCore.QRect(10, 2, 81, 31))
+        font = QtGui.QFont()
+        font.setFamily("微软雅黑")
+        self.switch_button.setFont(font)
         self.switch_button.setObjectName("switch_button")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 761, 23))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 793, 23))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -247,25 +363,40 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.stackedWidget.setCurrentIndex(0)
+        self.stackedWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        MainWindow.setTabOrder(self.Pursuer_Num_LineEdit, self.Evader_Num_LineEdit)
+        MainWindow.setTabOrder(self.Evader_Num_LineEdit, self.R_Perception_lineEdit)
+        MainWindow.setTabOrder(self.R_Perception_lineEdit, self.Obstacle_Num_LineEdit)
+        MainWindow.setTabOrder(self.Obstacle_Num_LineEdit, self.show_time_edit)
+        MainWindow.setTabOrder(self.show_time_edit, self.show_encircle_rate_edit)
+        MainWindow.setTabOrder(self.show_encircle_rate_edit, self.ApplyButton)
+        MainWindow.setTabOrder(self.ApplyButton, self.Continue_Button)
+        MainWindow.setTabOrder(self.Continue_Button, self.horizontalSlider)
+        MainWindow.setTabOrder(self.horizontalSlider, self.Stop_Button)
+        MainWindow.setTabOrder(self.Stop_Button, self.switch_button)
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "TERL"))
         self.imgDisplayLabel.setText(_translate("MainWindow", "TextLabel"))
-        self.Stop_Button.setText(_translate("MainWindow", "暂停"))
-        self.Continue_Button.setText(_translate("MainWindow", "继续"))
-        self.Pursuer_Num_Label_2.setText(_translate("MainWindow", "追捕者数量："))
-        self.Evader_Num_Label.setText(_translate("MainWindow", "逃避者数量："))
-        self.r_perception_label.setText(_translate("MainWindow", "感知半径："))
-        self.Obstacle_Num_Label.setText(_translate("MainWindow", "障碍物数量："))
-        self.ApplyButton.setText(_translate("MainWindow", "生成"))
+        self.groupBox.setTitle(_translate("MainWindow", "控制面板"))
         self.label.setText(_translate("MainWindow", "生成时间："))
+        self.Obstacle_Num_Label.setText(_translate("MainWindow", "障碍物数量："))
+        self.r_perception_label.setText(_translate("MainWindow", "感知半径："))
+        self.Evader_Num_Label.setText(_translate("MainWindow", "逃避者数量："))
         self.label_2.setText(_translate("MainWindow", "围捕率："))
+        self.Pursuer_Num_Label_2.setText(_translate("MainWindow", "追捕者数量："))
+        self.ApplyButton.setText(_translate("MainWindow", "生成"))
+        self.Continue_Button.setText(_translate("MainWindow", "继续"))
+        self.Stop_Button.setText(_translate("MainWindow", "暂停"))
         item = self.tableWidget.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "追捕者编号"))
         item = self.tableWidget.horizontalHeaderItem(1)
         item.setText(_translate("MainWindow", "逃避者编号集合"))
-        self.switch_button.setText(_translate("MainWindow", "切换"))
+        item = self.tableWidget.horizontalHeaderItem(2)
+        item.setText(_translate("MainWindow", "追捕者加速度集合"))
+        item = self.tableWidget.horizontalHeaderItem(3)
+        item.setText(_translate("MainWindow", "追捕者角速度集合"))
+        self.switch_button.setText(_translate("MainWindow", "切换界面"))
 from pyqtgraph import PlotWidget
