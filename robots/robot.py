@@ -124,7 +124,7 @@ class Robot:
 
     def compute_actions(self):
         """Generate Cartesian product of acceleration and angular velocity options."""
-        self.action_list = [(acc, ang_v) for acc in self.a for ang_v in self.w]
+        self.action_list = [(acc, ang_v) for acc in self.a for ang_v in self.w]#先a再w
 
     def compute_actions_dimension(self):
         """

@@ -37,6 +37,8 @@ class generate_video():
         end_episode = False
         length = 0
         start_time = time.perf_counter()
+        pursuer_a_list = [[]for _ in range(self.eval_env.num_pursuers)]
+        pursuer_w_list = [[]for _ in range(self.eval_env.num_pursuers)]
         while not end_episode:
             action = []
             for i, rob in enumerate(eval_env.pursuers):
@@ -48,7 +50,6 @@ class generate_video():
                     if use_iqn:
                         if act_adaptive:
                             a, _, _, _ = agent.act_adaptive(pursuer_state[i])
-
                 action.append(a)
             evaders_action = []
             for j, evader in enumerate(eval_env.evaders):
@@ -65,7 +66,9 @@ class generate_video():
                 if rob.deactivated:
                     continue
                 assert rob.robot_type == 'pursuer', "Every robot must be pursuer!"
-                
+                pursuer_a_list[rob.id].append(rob.a[int(action[i]/3)])
+                pursuer_w_list[rob.id].append(rob.w[action[i]%3])
+
                 times[i] += rob.dt * rob.N
                 energies[i] +=  rob.compute_action_energy_cost(action[i])
                 if rob.collision:
@@ -77,12 +80,12 @@ class generate_video():
         execution_time = end_time - start_time
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
         pursuer_captured_Id = [pursuer.captured_evaderId_list for pursuer in self.eval_env.pursuers]
-        return trajectories, energies,times,execution_time, pursuer_captured_Id
+        return trajectories, energies,times,execution_time, pursuer_captured_Id, pursuer_a_list, pursuer_w_list
     
 
     def run_experiment(self):
         eavl_configs = self.eval_env.episode_data()
-        trajectories,energies,times,execution_time, pursuer_captured_Id = self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
+        trajectories,energies,times,execution_time, pursuer_captured_Id ,pursuer_a_list, pursuer_w_list= self.evaluation(self.state, self.evader_state, self.TERL_agent, self.evader_agent, self.eval_env)
         dt = datetime.now()
         create_timestamp = dt.strftime("%H-%M-%S")
         save_dir = os.path.join(self.project_root, "photos")
@@ -125,7 +128,7 @@ class generate_video():
             for image in images:
                 video.write(cv2.imread(os.path.join(save_dir,image)))
             video.release() #释放资源
-            return video_path,energies,times,execution_time, pursuer_captured_Id
+            return video_path,energies,times,execution_time, pursuer_captured_Id, pursuer_a_list, pursuer_w_list
 
 
     def generate_hsv_colors(self, num_colors):
