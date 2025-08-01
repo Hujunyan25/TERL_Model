@@ -363,7 +363,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.stackedWidget.setCurrentIndex(1)
+        self.stackedWidget.setCurrentIndex(0) #这里是用来控制初始化的时候界面展示
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         MainWindow.setTabOrder(self.Pursuer_Num_LineEdit, self.Evader_Num_LineEdit)
         MainWindow.setTabOrder(self.Evader_Num_LineEdit, self.R_Perception_lineEdit)

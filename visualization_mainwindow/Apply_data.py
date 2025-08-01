@@ -48,8 +48,6 @@ class Apply(QMainWindow, Ui_MainWindow):
         pursuer_perception = self.R_Perception_lineEdit.text()
         obstacle_num = self.Obstacle_Num_LineEdit.text()
         gv = generate_video(pursuer_num, evader_num, pursuer_perception, obstacle_num)
-        a_list = []
-        w_list = []
         video_path,energies,times,execution_time, pursuer_captured_Id,pursuer_a_list, w_list = gv.run_experiment()
         for i in pursuer_a_list:
             if i==[]:

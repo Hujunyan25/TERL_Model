@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>793</width>
+    <height>657</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>TERL</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* ===== 全局字体和背景 ===== */
+QMainWindow, QDialog {
+    background-color: #f0f2f5; /* 非常浅的灰色背景，比纯白更有质感 */
+    font-family: &quot;Segoe UI&quot;, &quot;Microsoft YaHei&quot;, &quot;Helvetica Neue&quot;, sans-serif; /* 使用更现代的字体 */
+}
+
+/* ===== 视频显示区 ===== */
+#imgDisplayLabel {
+    background-color: #ffffff; /* 纯白背景 */
+    border: 1px solid #dcdfe6; /* 浅灰色边框 */
+    border-radius: 8px; /* 圆角可以大一点，显得更柔和 */
+}
+
+/* ===== 控制面板 (QGroupBox) ===== */
+QGroupBox {
+    background-color: #ffffff; /* 面板背景也是纯白 */
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    margin-top: 25px; /* 给标题留出足够空间 */
+    font-size: 11pt; /* 字体可以稍微大一点 */
+}
+
+/* 控制面板的标题样式 - 标签(Chip)版 */
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    margin-left: 15px;
+    padding: 4px 12px; /* 上下4px, 左右12px的内边距 */
+    
+    /* 关键部分在这里 */
+    background-color: #e8eef8; /* 一个非常淡的蓝色，与主题呼应 */
+    border-radius: 4px; /* 轻微的圆角 */
+    color: #409eff; /* 文字颜色使用主题的主蓝色 */
+    font-weight: bold;
+    font-size: 10pt; /* 可以稍微调整字号 */
+}
+
+/* ===== 面板内的控件 ===== */
+
+/* 标签样式 (QLabel) */
+QGroupBox QLabel {
+    color: #606266; /* 次要文字用灰色 */
+    background-color: transparent;
+    font-size: 10pt;
+}
+
+/* 输入框样式 (QLineEdit) */
+QGroupBox QLineEdit {
+    background-color: #fdfdfe;
+    color: #303133; /* 主要文字用深灰色 */
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 10pt;
+}
+QGroupBox QLineEdit:focus {
+    border: 1px solid #409eff; /* 焦点颜色使用明亮的蓝色 */
+    background-color: #ffffff;
+}
+QGroupBox QLineEdit:disabled {
+    background-color: #f5f7fa; /* 禁用状态的颜色 */
+    color: #c0c4cc;
+}
+
+
+/* ===== 按钮样式 (QPushButton) ===== */
+
+/* 默认按钮样式 (蓝色) */
+QGroupBox QPushButton {
+    background-color: #409eff; /* 主按钮颜色 - 亮蓝色 */
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 10pt;
+    font-weight: 500;
+}
+QGroupBox QPushButton:hover {
+    background-color: #66b1ff; /* 悬停时更亮 */
+}
+QGroupBox QPushButton:pressed {
+    background-color: #3a8ee6; /* 按下时更深 */
+}
+
+
+/* &quot;继续&quot; 按钮的特定样式 (绿色) */
+#Continue_Button {
+    background-color: #67c23a; /* 成功的绿色 */
+    color: white;
+    border: none;
+}
+#Continue_Button:hover {
+    background-color: #85ce61;
+}
+#Continue_Button:pressed {
+    background-color: #5daf34;
+}
+
+
+/* &quot;暂停&quot; 按钮的特定样式 (红色) */
+#Stop_Button {
+    background-color: #f56c6c; /* 警告的红色 */
+    color: white;
+    border: none;
+}
+#Stop_Button:hover {
+    background-color: #f78989;
+}
+#Stop_Button:pressed {
+    background-color: #f35252;
+}</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QStackedWidget" name="stackedWidget">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>20</y>
+      <width>751</width>
+      <height>591</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+     </font>
+    </property>
+    <property name="currentIndex">
+     <number>0</number>
+    </property>
+    <widget class="QWidget" name="page">
+     <widget class="QLabel" name="imgDisplayLabel">
+      <property name="geometry">
+       <rect>
+        <x>50</x>
+        <y>30</y>
+        <width>656</width>
+        <height>369</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLabel {
+    min-width: 640px;
+    min-height: 360px;
+    max-width: 1920px;  /* 按比例计算：360 * (1920/640) = 1080 */
+    max-height: 1080px;
+}</string>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+      <property name="scaledContents">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QGroupBox" name="groupBox">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>440</y>
+        <width>701</width>
+        <height>151</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>控制面板</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="1" column="0">
+        <layout class="QGridLayout" name="gridLayout">
+         <item row="1" column="4">
+          <widget class="QLabel" name="label">
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>生成时间：</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLabel" name="Obstacle_Num_Label">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>障碍物数量：</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QLineEdit" name="Evader_Num_LineEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="R_Perception_lineEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="5">
+          <widget class="QLineEdit" name="show_encircle_rate_edit">
+           <property name="font">
+            <font>
+             <pointsize>10</pointsize>
+            </font>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="5">
+          <widget class="QLineEdit" name="show_time_edit">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="r_perception_label">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>感知半径：</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="Evader_Num_Label">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>逃避者数量：</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="Pursuer_Num_LineEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QLineEdit" name="Obstacle_Num_LineEdit">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QLabel" name="label_2">
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>围捕率：</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="Pursuer_Num_Label_2">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>追捕者数量：</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="0">
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="3">
+          <widget class="QPushButton" name="ApplyButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>62</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>生成</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="Continue_Button">
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>62</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>继续</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QSlider" name="horizontalSlider">
+           <property name="font">
+            <font>
+             <family>AcadEref</family>
+             <pointsize>8</pointsize>
+            </font>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QPushButton" name="Stop_Button">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="font">
+            <font>
+             <family>微软雅黑</family>
+             <pointsize>10</pointsize>
+             <weight>62</weight>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>暂停</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="2" column="0">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="page_2">
+     <widget class="PlotWidget" name="energy_pursuer_graph_widget" native="true">
+      <property name="geometry">
+       <rect>
+        <x>30</x>
+        <y>20</y>
+        <width>701</width>
+        <height>231</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: white;</string>
+      </property>
+     </widget>
+     <widget class="QTableWidget" name="tableWidget">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>270</y>
+        <width>731</width>
+        <height>291</height>
+       </rect>
+      </property>
+      <attribute name="horizontalHeaderMinimumSectionSize">
+       <number>25</number>
+      </attribute>
+      <attribute name="horizontalHeaderDefaultSectionSize">
+       <number>140</number>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <column>
+       <property name="text">
+        <string>追捕者编号</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>逃避者编号集合</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>追捕者加速度集合</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>追捕者角速度集合</string>
+       </property>
+      </column>
+     </widget>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="switch_button">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>2</y>
+      <width>81</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>微软雅黑</family>
+     </font>
+    </property>
+    <property name="text">
+     <string>切换界面</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>793</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>pyqtgraph</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>Pursuer_Num_LineEdit</tabstop>
+  <tabstop>Evader_Num_LineEdit</tabstop>
+  <tabstop>R_Perception_lineEdit</tabstop>
+  <tabstop>Obstacle_Num_LineEdit</tabstop>
+  <tabstop>show_time_edit</tabstop>
+  <tabstop>show_encircle_rate_edit</tabstop>
+  <tabstop>ApplyButton</tabstop>
+  <tabstop>Continue_Button</tabstop>
+  <tabstop>horizontalSlider</tabstop>
+  <tabstop>Stop_Button</tabstop>
+  <tabstop>switch_button</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>
