@@ -5,15 +5,15 @@
 seed: 9
 
 # Total number of training timesteps
-total_timesteps: 7000000
+total_timesteps: 7000
 
 # Frequency of evaluation during training
-eval_freq: 200000
+eval_freq: 200
 
 # Training schedule parameters
 training_schedule:
   # Timesteps at which changes occur
-  time_steps: [ 0, 2000000, 4000000, 5000000, 6000000 ]
+  time_steps: [ 0, 2000, 4000, 5000, 6000 ]
   # Number of pursuers at each stage
   num_pursuers: [ 3, 4, 7, 11, 15 ]
   # Number of evaders at each stage
@@ -73,7 +73,9 @@ exp_schedule:
   min_pursuer_evader_init_dis: [ 10.0, 13.0, 15.0, 20.0, 20.0 ]
 
 # Whether to use Implicit Quantile Network (IQN) in training
-use_iqn: true
+use_iqn: false
+use_dqn: false
+use_ppo: true
 
 # Training parameters
 training:

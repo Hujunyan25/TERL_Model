@@ -9,22 +9,19 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-
 
 @dataclass
-class TERLConfig:
-    """Configuration class for TERL policy network"""
+class PpoConfig:
     hidden_dim: int = 256
     num_heads: int = 4
     num_layers: int = 3
     action_size: int = 9
-    num_quantiles: int = 32
-    num_cosine_features: int = 64
     device: str = 'cpu'
     seed: int = 0
-    learning_rate: float = 1e-4
-    gradient_clip: float = 1.0
+    # learning_rate: float = 0.002
+    # gradient_clip: float = 1.0
+    # gamma = 0.99
+    # eps_clip = 0.2
 
 
 def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
@@ -34,6 +31,27 @@ def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
         nn.LayerNorm(output_dimension),
         nn.ReLU()
     )
+
+class ActorCritic(nn.Module):
+    def __init__(self, state_dim, action_dim):
+        super(ActorCritic, self).__init__()
+        self.shared_layer = nn.Sequential(
+            nn.Linear(state_dim, PpoConfig.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(PpoConfig.hidden_dim, PpoConfig.hidden_dim),
+            nn.ReLU()
+        )
+        self.actor = nn.Sequential(
+            nn.Linear(PpoConfig.hidden_dim, action_dim),
+            nn.Softmax(dim=-1)
+        )
+        self.critic = nn.Linear(PpoConfig.hidden_dim, 1)
+
+    def forward(self, state):
+        shared = self.shared_layer(state)
+        action_probs = self.actor(shared)
+        state_value = self.critic(shared)
+        return action_probs, state_value
 
 
 class TargetSelectionModule(nn.Module):
@@ -114,37 +132,24 @@ class TargetSelectionModule(nn.Module):
         assert attention_weights.squeeze(1).shape == (batch_size, num_evaders)
 
         return enhanced_feature, attention_weights.squeeze(1)
+    
 
-
-class TERLPolicy(nn.Module):
-    """
-    TERL policy network implementation
-    Uses Transformer architecture to process multi-entity inputs
-    """
-
-    def __init__(self, config: Optional[TERLConfig] = None, **kwargs):
-        """
-        Initialize TERL policy network
-
-        Args:
-            config: TERL configuration object
-            **kwargs: Optional configuration parameters, will override defaults in config
-        """
+class PpoPolicy(nn.Module):
+    def __init__(self, config: Optional[PpoConfig] = None, **kwargs):
         super().__init__()
 
-        # Initialize parameters using config class or kwargs
         if config is None:
-            config = TERLConfig()
+            config = PpoConfig()
         for key, value in kwargs.items():
             if hasattr(config, key):
                 setattr(config, key, value)
-
+        
         self.config = config
         self.hidden_dim = config.hidden_dim
+        self.action_dim = config.action_size
         self.device = config.device
         torch.manual_seed(config.seed)
 
-        # Define feature dimensions for various entity types
         self.feature_dims = {
             'self': 4,  # [vx, vy, min_obs_dis, pursuing_signal]
             'pursuers': 7,  # [px, py, vx, vy, dist, angle, pursuing_signal]
@@ -152,30 +157,22 @@ class TERLPolicy(nn.Module):
             'obstacles': 5  # [px, py, radius, dist, angle]
         }
 
-        # IQN parameters
-        self.K = config.num_quantiles
-        self.n = config.num_cosine_features
-        # Precompute π values for cosine features
-        self.register_buffer('pis',
-                             torch.FloatTensor([np.pi * i for i in range(self.n)]).view(1, 1, self.n))
+        self.policy = ActorCritic(self.hidden_dim,self.action_dim).to(self.device)
 
-        # Define feature encoders
         self.entity_encoders = nn.ModuleDict({
             name: encoder(dim, self.hidden_dim)
             for name, dim in self.feature_dims.items()
         })
 
-        # Type embedding
         self.type_embedding = nn.Embedding(4, self.hidden_dim)
 
-        # Transformer encoder
         encoder_layer = nn.TransformerEncoderLayer(
-            d_model=self.hidden_dim,
-            nhead=config.num_heads,
+            d_model = self.hidden_dim,
+            nhead = config.num_heads,
             dim_feedforward=self.hidden_dim * 4,
-            dropout=0.1,
+            dropout = 0.1,
             batch_first=True,
-            norm_first=True,  # Use Pre-LN structure to improve stability
+            norm_first=True,
         )
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer,
@@ -183,51 +180,15 @@ class TERLPolicy(nn.Module):
             enable_nested_tensor=False
         )
 
-        # Add target selection module
         self.target_selection = TargetSelectionModule(self.hidden_dim)
 
-        # IQN related layers
-        self.cos_embedding = nn.Linear(self.n, self.hidden_dim)
-
-        # Output layer
-        self.hidden_layer = nn.Linear(self.hidden_dim, self.hidden_dim)
-        self.output_layer = nn.Linear(self.hidden_dim, config.action_size)
-        self.layer_norm = nn.LayerNorm(self.hidden_dim)
-
-        # Initialize weights
-        # self._init_weights()
-
-        # Move model to specified device
         self.to(self.device)
 
         # For storing the last attention weights
         self._last_target_weights = None
         self._last_transformer_weights = None
 
-    def _init_weights(self):
-        """Initialize network weights"""
-        for name, param in self.named_parameters():
-            if 'weight' in name:
-                if 'embedding' in name:
-                    # Embedding layer initialized with standard normal distribution
-                    nn.init.normal_(param.data, mean=0.0, std=0.02)
-                elif 'layer_norm' in name:
-                    # LayerNorm layer weights initialized to 1
-                    nn.init.constant_(param.data, 1.0)
-                elif 'output_layer' in name:
-                    # Output layer uses a smaller initialization range to avoid overly large initial values
-                    nn.init.uniform_(param.data, -0.003, 0.003)
-                elif param.dim() > 1:
-                    # For 2D and higher weights, use orthogonal initialization with gain=1/sqrt(2) for better initial scaling
-                    nn.init.orthogonal_(param.data, gain=1 / math.sqrt(2))
-                else:
-                    # 1D weights use uniform distribution
-                    bound = 1 / math.sqrt(param.size(0))
-                    nn.init.uniform_(param.data, -bound, bound)
-            elif 'bias' in name:
-                # Bias terms initialized to 0
-                nn.init.constant_(param.data, 0)
-
+    
     def _validate_input(self, obs: Dict[str, torch.Tensor]) -> None:
         """Validate the format and dimensions of input data"""
         if not isinstance(obs, dict):
@@ -243,20 +204,10 @@ class TERLPolicy(nn.Module):
         if obs['self'].shape[1] != self.feature_dims['self']:
             raise ValueError(f"self features must have dimension {self.feature_dims['self']}")
 
-    def encode_entities(self, obs: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-        Encode entity features and process through Transformer
-
-        Args:
-            obs: Dictionary containing features of various entities
-
-        Returns:
-            torch.Tensor: Encoded features [batch_size, hidden_dim]
-        """
+    def encoded_entities(self, obs: Dict[str, torch.Tensor]) -> torch.Tensor:
         B = obs['self'].shape[0]
         encoded_features = []
 
-        # Encode various entities
         for entity_type, encoder in self.entity_encoders.items():
             features = obs[entity_type]
             if entity_type == 'self':
@@ -265,109 +216,44 @@ class TERLPolicy(nn.Module):
                 encoded = encoder(features)
             encoded_features.append(encoded)
 
-        # Concatenate all encoded features
         entity_embed = torch.cat(encoded_features, dim=1)
-
-        # Add type embedding
         type_embed = self.type_embedding(obs['types'].long())
-        tokens = entity_embed + type_embed
+        tokens = entity_embed+type_embed
 
-        # Transformer processing
         attention_mask = ~obs['masks'].bool()
         transformed = self.transformer_encoder(tokens, src_key_padding_mask=attention_mask)
 
-        # Get self feature
-        self_feature = transformed[:, 0]  # [B, H]
-        global_feature = torch.max(transformed, dim=1).values  # [B, H]
+        self_feature = transformed[:,0]
+        global_feature = torch.max(transformed,dim=1).values
 
-        enhanced_feature = torch.cat([self_feature, global_feature], dim=-1)  # [B, 2H]
+        enhanced_feature = torch.cat([self_feature, global_feature], dim=-1) 
 
-        # Extract evader features and mask - uniformly handle batch and single samples
-        evader_indices = (obs['types'] == 2)  # [B, N]
-
-        # Get the number of positions with type==2 per batch
+        evader_indices = (obs['types']==2)
         num_evaders_per_batch = evader_indices.sum(dim=1)  # [B]
         max_evaders = num_evaders_per_batch.max().item()
-
-        # Use masked_select and reshape to handle irregular selections
         flat_mask = obs['masks'].masked_select(evader_indices)
         flat_features = transformed.masked_select(
             evader_indices.unsqueeze(-1).expand(-1, -1, transformed.size(-1))
         )
 
-        # Reshape into regular shape
         evader_mask = flat_mask.reshape(B, max_evaders)  # [B, max_evaders]
-        evader_features = flat_features.reshape(B, max_evaders, -1)  # [B, max_evaders, H]
+        evader_features = flat_features.reshape(B, max_evaders, -1) 
 
-        # Apply target selection module
         enhanced_features, attention_weights = self.target_selection(
             enhanced_feature,
             evader_features,
             evader_mask
         )
 
-        # Store attention weights for visualization
         self._last_target_weights = attention_weights
-
         return enhanced_features
-
-    def calc_cos(self, batch_size: int, num_tau: int = 8, cvar: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Calculate cosine values
-
-        Args:
-            batch_size: Batch size
-            num_tau: Number of tau samples
-            cvar: CVaR parameter
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: Cosine values and tau values
-        """
-        if batch_size <= 0 or num_tau <= 0 or cvar <= 0:
-            raise ValueError("batch_size, num_tau and cvar must be positive")
-
-        taus = torch.rand(batch_size, num_tau).to(self.device).unsqueeze(-1)
-        taus = torch.pow(taus, cvar).clamp(0, 1)
-        cos = torch.cos(taus * self.pis)
-
-        return cos, taus
-
-    def forward(self,
-                obs: Dict[str, torch.Tensor],
-                num_tau: int = 8,
-                cvar: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Forward propagation
-
-        Args:
-            obs: Observation data dictionary
-            num_tau: Number of tau samples
-            cvar: CVaR parameter
-
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]:
-                - quantiles: [batch_size, num_tau, action_size]
-                - taus: [batch_size, num_tau, 1]
-        """
+    
+    def forward(self, obs: Dict[str, torch.Tensor])->Tuple[torch.Tensor, torch.Tensor]:
         self._validate_input(obs)
-        batch_size = obs['self'].shape[0]
 
-        # Transformer encoding of observations
-        features = self.encode_entities(obs)
-
-        # IQN processing
-        cos, taus = self.calc_cos(batch_size, num_tau, cvar)
-        cos_features = F.relu(self.cos_embedding(cos))
-
-        # Feature combination
-        features = (features.unsqueeze(1) * cos_features).view(batch_size * num_tau, -1)
-
-        # Output layer
-        features = F.relu(self.hidden_layer(features))
-        features = self.layer_norm(features)
-        quantiles = self.output_layer(features)
-
-        return quantiles.view(batch_size, num_tau, -1), taus
+        features = self.encoded_entities(obs)
+        action_probs, values = self.policy(features)
+        return action_probs, values
 
     def get_attention_weights(self) -> Dict[str, torch.Tensor]:
         """Get the attention weights from the last forward pass"""
@@ -423,7 +309,7 @@ class TERLPolicy(nn.Module):
              directory: str,
              device: str = 'cpu',
              version: Optional[int] = None,
-             **kwargs) -> 'TERLPolicy':
+             **kwargs) -> 'PpoPolicy':
         """
         Load the model
 
@@ -467,10 +353,10 @@ class TERLPolicy(nn.Module):
             if os.path.exists(config_path):
                 with open(config_path, 'r') as f:
                     config_dict = json.load(f)
-                config = TERLConfig(**config_dict)
+                config = PpoConfig(**config_dict)
             else:
                 logger.warning(f"Config file for version {version} not found, using default configuration")
-                config = TERLConfig()
+                config = PpoConfig()
 
             # Update device and other parameters
             config.device = device
@@ -489,3 +375,13 @@ class TERLPolicy(nn.Module):
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             raise
+
+
+
+
+
+
+
+
+
+

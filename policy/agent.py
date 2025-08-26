@@ -9,6 +9,7 @@ import torch.optim as optim
 import wandb
 from torch.nn import functional as F
 
+from policy.PPO import PpoPolicy, PpoConfig
 from policy.DQN import DqnPolicy, DqnConfig
 from policy.TERL_model import TERLPolicy, TERLConfig
 from policy.ablation_mlp_with_target_selection import MlpWithTargetSelectPolicy, MlpWithTargetSelectConfig
@@ -16,6 +17,8 @@ from policy.ablation_transformer_without_target_selection import TransformerWith
 from policy.IQN import IQNPolicy, IQNConfig
 from policy.MEAN import MEANPolicy, MEANConfig
 from policy.replay_buffer import ReplayBuffer
+from policy.ppo_replay_buffer import PpoReplayBuffer
+from torch.distributions import Categorical
 
 
 class Agent:
@@ -47,7 +50,7 @@ class Agent:
                  num_heads=8,
                  num_layers=4,
                  action_size=9,
-                 BATCH_SIZE=128,
+                 BATCH_SIZE=64,
                  BUFFER_SIZE=1_000_000,
                  LR=1e-4,
                  TAU=1.0,
@@ -56,6 +59,8 @@ class Agent:
                  seed=0,
                  training=True,
                  use_iqn=True,
+                 use_dqn = False,
+                 use_ppo = False,
                  model_name=None,
                  wandb_project="multi-agent-rl-iqn", ):
         """
@@ -87,6 +92,8 @@ class Agent:
         self.training = training
         self.action_size = action_size
         self.use_iqn = use_iqn
+        self.use_dqn = use_dqn
+        self.use_ppo = use_ppo
         self.model_name = model_name
 
         # Set random seed
@@ -164,7 +171,7 @@ class Agent:
                     self.policy_local = MEANPolicy(config=config)
                     self.policy_target = MEANPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
-            else:
+            elif use_dqn:
                 # DQN policy network initialization
                 if self.model_name == "DQN":
                     config = DqnConfig(
@@ -178,10 +185,39 @@ class Agent:
                     self.policy_local = DqnPolicy(config=config)
                     self.policy_target = DqnPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+            elif use_ppo:
+                if self.model_name == "PPO":
+                    config = PpoConfig(
+                        hidden_dim = hidden_dimension,
+                        num_heads = num_heads,
+                        num_layers = num_layers,
+                        action_size = action_size,
+                        device = device,
+                        seed = seed
+                    )
+                    self.policy_local = PpoPolicy(config=config)
+                    self.policy_target = PpoPolicy(config=config)
+                    self.policy_target.load_state_dict(self.policy_local.state_dict())
 
             self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
+            if use_ppo:
+                self.memory = PpoReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
+            else:
+                self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
 
-            self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
+    def act_ppo(self, state, use_eval=True):
+        if use_eval:
+            self.policy_local.eval()
+        else:
+            self.policy_local.train()
+
+        with torch.no_grad():
+            action_probs, _ = self.policy_local(state)
+        self.policy_local.train()
+        dist = Categorical(action_probs)
+        action = dist.sample()
+        action_log_prob = dist.log_prob(action)
+        return action_log_prob, action
 
     def act_dqn(self, state, eps=0.0, use_eval=True):
         """
@@ -325,8 +361,10 @@ class Agent:
         """
         if self.use_iqn:
             return self.train_IQN()
-        else:
+        elif self.use_dqn:
             return self.train_DQN()
+        elif self.use_ppo:
+            return self.train_ppo()
 
     def train_IQN(self):
         """
@@ -399,6 +437,51 @@ class Agent:
         self.optimizer.step()
 
         return loss.detach().cpu().numpy()
+    
+    def train_ppo(self):
+        old_states, actions, rewards, next_states, dones, log_probs = self.memory.sample().values()
+        actions = actions.unsqueeze(-1).long()
+        rewards = rewards.unsqueeze(-1).float()
+        dones = dones.unsqueeze(-1).float()
+        log_probs = log_probs.unsqueeze(-1)
+        self.optimizer.zero_grad() 
+        rewards_list = []
+        discounted_reward = 0
+        for re, is_done in zip(reversed(rewards), reversed(dones)):
+            if is_done:
+                discounted_reward = 0
+            discounted_reward = re + self.GAMMA * discounted_reward
+            rewards_list.insert(0, discounted_reward)
+        rewards_list = torch.tensor(rewards_list, dtype=torch.float32).to(self.device)
+        rewards_list = (rewards_list - rewards_list.mean()) / (rewards_list.std() + 1e-9)
+        self.k_epochs = 5
+        self.eps_clip=0.2
+        mse_loss = torch.nn.MSELoss()
+
+        for _ in range(self.k_epochs):
+            actions_probs, values = self.policy_local(old_states)
+            dist = Categorical(actions_probs)
+            new_log_probs = dist.log_prob(actions)
+            entropy = dist.entropy()
+
+            ratios = torch.exp(new_log_probs - log_probs.detach())
+            advantages = rewards_list - values.detach().squeeze()
+
+            surr1 = ratios * advantages
+            surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
+            loss_actor = -torch.min(surr1, surr2).mean()
+
+            loss_critic = mse_loss(values.squeeze(), rewards_list)
+            loss = loss_actor + 0.5*loss_critic-0.01*entropy.mean()
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.policy_target.load_state_dict(self.policy_local.state_dict())
+
+
+
+
 
     def soft_update(self):
         """

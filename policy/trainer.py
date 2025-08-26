@@ -202,16 +202,23 @@ class Trainer:
             states = [self.convert_to_tensor(state, self.device) for state in states]
             # Get actions for all robots
             actions = []
+            action_probs = []
             for i, rob in enumerate(self.train_env.pursuers):
                 if rob.deactivated:
                     actions.append(None)
+                    action_probs.append(None)
                     continue
 
                 if self.pursuer_agent.use_iqn:
                     action, _, _ = self.pursuer_agent.act(states[i], eps)
-                else:
+                    actions.append(action)
+                elif self.pursuer_agent.use_dqn:
                     action, _ = self.pursuer_agent.act_dqn(states[i], eps)
-                actions.append(action)
+                    actions.append(action)
+                elif self.pursuer_agent.use_ppo:
+                    action_prob, action = self.pursuer_agent.act_ppo(states[i])
+                    actions.append(action)
+                    action_probs.append(action_prob)
 
             evader_actions = []
             for j, evader in enumerate(self.train_env.evaders):
@@ -236,7 +243,10 @@ class Trainer:
 
                 ep_rewards[i] += self.pursuer_agent.GAMMA ** ep_length * rewards[i]
                 if self.pursuer_agent.training:
-                    self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i])
+                    if self.pursuer_agent.use_ppo:
+                        self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i], action_probs[i])
+                    else:
+                        self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i])
 
                 if pursuer.collision:
                     pursuer.deactivated = True

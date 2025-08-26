@@ -180,7 +180,7 @@ class MarineEnv(gym.Env):
         # Curriculum learning parameters
         self.schedule = schedule  # curriculum schedule
         self.episode_time_steps = 0  # current episode timesteps
-        self.episode_max_length = self.config_env.get("training.episode_max_length", default=3000)  # max episode length
+        self.episode_max_length = self.config_env.get("training.episode_max_length", default=300)  # max episode length
         self.total_time_steps = 0  # total training timesteps
 
         # Observation parameters

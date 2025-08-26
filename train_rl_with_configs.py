@@ -40,6 +40,7 @@ parser.add_argument(
         "IQN",  # match the config file: config.yaml
         "MEAN",  # match the config file: config.yaml
         "DQN",  # match the config file: config_dqn.yaml
+        "PPO",  # match the config file: config.yaml
     ], help="Name of the model"
 )
 parser.add_argument(
@@ -159,8 +160,8 @@ def run_trial(device, config_file):
         logger.info(f"Process {process_id} - Environments initialized")
 
         # Initialize agents
-        assert (model_name == "DQN") ^ params["use_iqn"], "Model name and use_iqn should match"
-        pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], seed=params["seed"] + 100,
+        # assert (model_name == "DQN") ^ params["use_iqn"], "Model name and use_iqn should match"
+        pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],seed=params["seed"] + 100,
                               model_name=args.model_name[args.model_index])
         logger.info(f"Process {process_id} - Agents initialized with model: {pursuer_agent.model_name}")
         evader_agent = ApfAgent(train_env.evaders[0].a, train_env.evaders[0].w)
@@ -209,6 +210,8 @@ def run_trial(device, config_file):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    os.environ["WANDB_API_KEY"] = "d696e7ea0b45fe9d0cb1657097c081b13fb7b765"
+    os.environ["WANDB_MODE"] = "offline"
     save_project.save_source_file()
 
     try:
