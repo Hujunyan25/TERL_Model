@@ -19,7 +19,7 @@ from thirdparty.APF import ApfAgent
 sys.path.insert(0, "./thirdparty")
 
 
-def evaluation(states, agent, evader_agent, eval_env: MarineEnv, use_rl=True, use_iqn=True, act_adaptive=True,
+def evaluation(states, agent, evader_agent, eval_env: MarineEnv, use_rl=True, use_iqn=True, use_dqn=False, use_ppo=False,act_adaptive=True,
                save_episode=False):
     """Evaluate performance of the agent.
     """
@@ -55,8 +55,10 @@ def evaluation(states, agent, evader_agent, eval_env: MarineEnv, use_rl=True, us
                         a, _, _, _ = agent.act_adaptive(pursuer_state[i])
                     else:
                         a, _, _ = agent.act(pursuer_state[i])
-                else:
+                elif use_dqn:
                     a, _ = agent.act_dqn(pursuer_state[i])
+                elif use_ppo:
+                    _, a = agent.act_ppo(pursuer_state[i])
             else:
                 a = agent.act(pursuer_state[i])
             end = t_module.perf_counter()
@@ -177,11 +179,12 @@ def dashboard(eval_schedule, indent=0):
 
 def run_experiment(eval_schedules, index):
     """Run the experiment with the specified evaluation schedules."""
-    agents = [Terl_agent, IQN_agent, Mean_agent, Dqn_agent]
-    evader_agents = [evader_agent1, evader_agent2, evader_agent3, evader_agent4]
+    agents = [PPO_agent]
+    evader_agents = [evader_agent5]
     names = model_name
-    envs = [test_env_1, test_env_2, test_env_3, test_env_4]
-    evaluations = [evaluation, evaluation, evaluation, evaluation]
+    envs = [test_env_5]
+
+    evaluations = [evaluation]
 
     color_palette = ["#2E7BA6", "#B46FA2", "#2A8C66", "#C78A2A", "#4B61C6", "#E0BFE0", "#3D5A80", "#914E25"]
 
@@ -241,33 +244,15 @@ def run_experiment(eval_schedules, index):
                 obs = observations[j]
                 trajectories = None
                 if save_trajectory:
-                    if name == "TERL":
+                    if name == "PPO":
                         success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, trajectories, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=True)
-                    elif name == "IQN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, trajectories, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=True)
-                    elif name == "MEAN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, trajectories, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=True)
-                    elif name == "DQN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, trajectories, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, use_iqn=False, act_adaptive=False, save_episode=True)
+                            obs, agent, evader_agent, env, use_iqn=False,use_dqn=False,use_ppo=True,act_adaptive=False, save_episode=True)
                     else:
                         raise RuntimeError("Agent not implemented!")
                 else:
                     if name == "TERL":
                         success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=False)
-                    elif name == "IQN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=False)
-                    elif name == "MEAN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, act_adaptive=False, save_episode=False)
-                    elif name == "DQN":
-                        success, rewards, computation_times, max_pursuit_time, avg_pursuit_time, success_energies, collision_ratio, experiment_min_distance = eval_func(
-                            obs, agent, evader_agent, env, use_iqn=False, act_adaptive=False, save_episode=False)
+                            obs, agent, evader_agent, env, use_iqn=False,use_dqn=False,use_ppo=False,act_adaptive=False, save_episode=False)
                     else:
                         raise RuntimeError("Agent not implemented!")
 
@@ -343,120 +328,13 @@ def run_experiment(eval_schedules, index):
     with open(filename, "w") as file:
         json.dump(exp_data, file)
 
-    fig1, ax1 = plt.subplots()
-    fig2, ax2 = plt.subplots()
-    fig3, ax3 = plt.subplots()
-    fig4, ax4 = plt.subplots()
-    fig5, ax5 = plt.subplots()
-    fig6, ax6 = plt.subplots()
-
-    bar_width = 0.25
-    interval_scale = 1.25
-    set_label = [True] * len(names)
-
-    offsets = [-1.5 * bar_width, -0.5 * bar_width, 0.5 * bar_width, 1.5 * bar_width]
-
-    for i, robot_num in enumerate(robot_nums):
-        all_successes = all_successes_exp[i]
-        all_max_success_times_with_success = all_success_times_exp[i]
-        all_avg_success_times_with_success = per_evader_success_times_exp[i]
-        all_success_energies = all_success_energies_exp[i]
-        all_collision_ratios = all_collision_ratios_exp[i]
-        all_experiment_min_distance = all_experiment_min_distance_exp[i]
-
-        for j, pos in zip(range(len(all_successes)), offsets):
-            # Bar plot for success rate
-            s_rate = np.sum(all_successes[j]) / len(all_successes[j])
-            if set_label[j]:
-                ax1.bar(interval_scale * i + pos, s_rate, 0.8 * bar_width, color=colors[j], label=names[j])
-                set_label[j] = False
-            else:
-                ax1.bar(interval_scale * i + pos, s_rate, 0.8 * bar_width, color=colors[j])
-
-            # Box plot for time
-            box = ax2.boxplot(all_max_success_times_with_success[j], positions=[interval_scale * i + pos],
-                              flierprops={'marker': '.', 'markersize': 1}, patch_artist=True)
-            for patch in box["boxes"]:
-                patch.set_facecolor(colors[j])
-            for line in box["medians"]:
-                line.set_color("black")
-
-            # Box plot for energy
-            box = ax3.boxplot(all_success_energies[j], positions=[interval_scale * i + pos],
-                              flierprops={'marker': '.', 'markersize': 1}, patch_artist=True)
-            for patch in box["boxes"]:
-                patch.set_facecolor(colors[j])
-            for line in box["medians"]:
-                line.set_color("black")
-
-            # Box plot for time per evader
-            box = ax4.boxplot(all_avg_success_times_with_success[j], positions=[interval_scale * i + pos],
-                              flierprops={'marker': '.', 'markersize': 1}, patch_artist=True)
-            for patch in box["boxes"]:
-                patch.set_facecolor(colors[j])
-            for line in box["medians"]:
-                line.set_color("black")
-
-            # Bar plot for collision ratio
-            if set_label[j]:
-                ax5.bar(interval_scale * i + pos, np.mean(all_collision_ratios[j]), 0.8 * bar_width, color=colors[j],
-                        label=names[j])
-                set_label[j] = False
-            else:
-                ax5.bar(interval_scale * i + pos, np.mean(all_collision_ratios[j]), 0.8 * bar_width, color=colors[j])
-
-            # Line plot for experiment min distance
-            ax6.plot(interval_scale * i + pos, np.mean(all_experiment_min_distance[j]), marker='o', color=colors[j],
-                     label=names[j])
-
-    # Ensure the number of ticks matches the number of labels
-    xticks = interval_scale * np.arange(len(robot_nums))
-
-    evader_nums = eval_schedules["num_evaders"]
-    xticklabels = [f"{num1}/{num2}" for num1, num2 in zip(robot_nums, evader_nums)]
-
-    # Set ticks and labels for ax1
-    ax1.set_xticks(xticks)
-    ax1.set_xticklabels(xticklabels)
-    ax1.set_title("Success Rate")
-    ax1.legend()
-
-    # Set ticks and labels for ax2
-    ax2.set_xticks(xticks)
-    ax2.set_xticklabels(xticklabels)
-    ax2.set_title("Time")
-
-    # Set ticks and labels for ax3
-    ax3.set_xticks(xticks)
-    ax3.set_xticklabels(xticklabels)
-    ax3.set_title("Energy")
-
-    ax4.set_xticks(xticks)
-    ax4.set_xticklabels(xticklabels)
-    ax4.set_title("Time per Evader")
-
-    ax5.set_xticks(xticks)
-    ax5.set_xticklabels(xticklabels)
-    ax5.set_title("Collision Ratio")
-
-    ax6.set_xticks(xticks)
-    ax6.set_xticklabels(xticklabels)
-    ax6.set_title("Experiment Min Distance")
-
-    # Save figures
-    fig1.savefig(os.path.join(exp_dir, "success_rate.png"))
-    fig2.savefig(os.path.join(exp_dir, "time.png"))
-    fig3.savefig(os.path.join(exp_dir, "energy.png"))
-    fig4.savefig(os.path.join(exp_dir, "time_per_evader.png"))
-    fig5.savefig(os.path.join(exp_dir, "collision_ratio.png"))
-    fig6.savefig(os.path.join(exp_dir, "experiment_min_distance.png"))
-
     # plt.show()
 
 
 def initialize_wandb(config):
     """Initialize Weights & Biases (wandb)."""
     try:
+        os.environ["WANDB_MODE"]="offline"
         wandb.init(
             project=args.project,
             group=args.group,
@@ -522,16 +400,10 @@ if __name__ == "__main__":
 
     # Model names
     model_name = [
-        "TERL",
-        "IQN",
-        "MEAN",
-        "DQN",
+        "PPO"
     ]
 
-    save_dir = f"TrainedModels/{model_name[0]}"
-
     project_root = os.path.dirname(os.path.abspath(__file__))
-    model_dir = os.path.join(project_root, save_dir)
     config_file = os.path.join(project_root, "config", f"{exp_config_list[args.config]}")
     logger.info(f"config_file: {config_file}")
 
@@ -542,34 +414,15 @@ if __name__ == "__main__":
 
     initialize_wandb(exp_schedule)
 
-    test_env_1 = MarineEnv(seed)
-    Terl_agent = Agent(device=device, model_name=model_name[0])
-    Terl_agent.load_model(model_dir, device)
-    evader_agent1 = ApfAgent(test_env_1.evaders[0].a, test_env_1.evaders[0].w)
-
-    save_dir = f"TrainedModels/{model_name[1]}"
+    save_dir = os.path.join("TrainedModels", model_name[0])
+    # save_dir = f"TrainedModels/{model_name[4]}"
     model_dir = os.path.join(project_root, save_dir)
 
-    test_env_2 = MarineEnv(seed)
-    IQN_agent = Agent(device=device, model_name=model_name[1])
-    IQN_agent.load_model(model_dir, device)
-    evader_agent2 = ApfAgent(test_env_2.evaders[0].a, test_env_2.evaders[0].w)
+    test_env_5 = MarineEnv(seed)
+    PPO_agent = Agent(device=device, model_name=model_name[0],use_iqn=False,use_dqn=False,use_ppo=True)
+    PPO_agent.load_model(model_dir, device)
+    evader_agent5 = ApfAgent(test_env_5.evaders[0].a, test_env_5.evaders[0].w)
 
-    save_dir = f"TrainedModels/{model_name[2]}"
-    model_dir = os.path.join(project_root, save_dir)
-
-    test_env_3 = MarineEnv(seed)
-    Mean_agent = Agent(device=device, model_name=model_name[2])
-    Mean_agent.load_model(model_dir, device)
-    evader_agent3 = ApfAgent(test_env_3.evaders[0].a, test_env_3.evaders[0].w)
-
-    save_dir = f"TrainedModels/{model_name[3]}"
-    model_dir = os.path.join(project_root, save_dir)
-
-    test_env_4 = MarineEnv(seed)
-    Dqn_agent = Agent(device=device, model_name=model_name[3], use_iqn=False)
-    Dqn_agent.load_model(model_dir, device)
-    evader_agent4 = ApfAgent(test_env_4.evaders[0].a, test_env_4.evaders[0].w)
 
     run_experiment(exp_schedule, args.config)
     wandb.finish()

@@ -271,7 +271,7 @@ class Trainer:
 
                 # Evaluate every eval_freq steps
                 if self.current_timestep == self.learning_starts or self.current_timestep % eval_freq == 0:
-                    # self.evaluation()
+                    self.evaluation()
                     # self.save_evaluation(eval_log_path)
                     for agent in [self.pursuer_agent]:
                         if agent is None or not agent.training:
@@ -423,8 +423,10 @@ class Trainer:
 
                     if self.pursuer_agent.use_iqn:
                         a, _, _ = self.pursuer_agent.act(state[i])
-                    else:
+                    elif self.pursuer_agent.use_dqn:
                         a, _ = self.pursuer_agent.act_dqn(state[i])
+                    elif self.pursuer_agent.use_ppo:
+                        _,a = self.pursuer_agent.act_ppo(state[i])
 
                     action.append(a)
 

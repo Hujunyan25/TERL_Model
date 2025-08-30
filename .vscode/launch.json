@@ -11,7 +11,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args":["-D","cpu","--config-files","./config/config.yaml","-R","0",
-            "-N","PPO", "-I","0"]
+            "-N","PPO", "-I","0"]//运行train_rl_with_configs.py
+            //"args": ["-D","cpu","-S","-C","0","--project","my_new_project"]//运行run_experiments_baseline.py
 
         }
     ]

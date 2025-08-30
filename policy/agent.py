@@ -123,6 +123,7 @@ class Agent:
                     self.policy_local = TERLPolicy(config=config)
                     self.policy_target = TERLPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
                 elif self.model_name == "MlpWithTargetSelect":
                     config = MlpWithTargetSelectConfig(
                         hidden_dim=hidden_dimension,
@@ -135,6 +136,7 @@ class Agent:
                     self.policy_local = MlpWithTargetSelectPolicy(config=config)
                     self.policy_target = MlpWithTargetSelectPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
                 elif self.model_name == "TransformerWithoutTargetSelect":
                     config = TransformerWithoutTargetSelectConfig(
                         hidden_dim=hidden_dimension,
@@ -147,6 +149,7 @@ class Agent:
                     self.policy_local = TransformerWithoutTargetSelectPolicy(config=config)
                     self.policy_target = TransformerWithoutTargetSelectPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
                 elif self.model_name == "IQN":
                     config = IQNConfig(
                         hidden_dim=hidden_dimension,
@@ -159,6 +162,7 @@ class Agent:
                     self.policy_local = IQNPolicy(config=config)
                     self.policy_target = IQNPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
                 elif self.model_name == "MEAN":
                     config = MEANConfig(
                         hidden_dim=hidden_dimension,
@@ -171,6 +175,7 @@ class Agent:
                     self.policy_local = MEANPolicy(config=config)
                     self.policy_target = MEANPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
             elif use_dqn:
                 # DQN policy network initialization
                 if self.model_name == "DQN":
@@ -185,6 +190,7 @@ class Agent:
                     self.policy_local = DqnPolicy(config=config)
                     self.policy_target = DqnPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
             elif use_ppo:
                 if self.model_name == "PPO":
                     config = PpoConfig(
@@ -198,14 +204,16 @@ class Agent:
                     self.policy_local = PpoPolicy(config=config)
                     self.policy_target = PpoPolicy(config=config)
                     self.policy_target.load_state_dict(self.policy_local.state_dict())
-
-            self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
+                    self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
+                    #self.actor_optimizer = optim.Adam(self.policy_local.actor.parameters(), lr=self.LR)
+                    #self.critic_optimizer = optim.Adam(self.policy_local.critic.parameters(), lr=self.LR)
             if use_ppo:
                 self.memory = PpoReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
             else:
                 self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
 
     def act_ppo(self, state, use_eval=True):
+        state = self.convert_to_tensor(state, self.device)
         if use_eval:
             self.policy_local.eval()
         else:
@@ -445,39 +453,38 @@ class Agent:
         dones = dones.unsqueeze(-1).float()
         log_probs = log_probs.unsqueeze(-1)
         self.optimizer.zero_grad() 
-        rewards_list = []
-        discounted_reward = 0
-        for re, is_done in zip(reversed(rewards), reversed(dones)):
-            if is_done:
-                discounted_reward = 0
-            discounted_reward = re + self.GAMMA * discounted_reward
-            rewards_list.insert(0, discounted_reward)
-        rewards_list = torch.tensor(rewards_list, dtype=torch.float32).to(self.device)
-        rewards_list = (rewards_list - rewards_list.mean()) / (rewards_list.std() + 1e-9)
-        self.k_epochs = 5
+        self.k_epochs = 20
         self.eps_clip=0.2
+        self.LAMBDA=0.95
         mse_loss = torch.nn.MSELoss()
 
         for _ in range(self.k_epochs):
             actions_probs, values = self.policy_local(old_states)
+            _,values_next = self.policy_local(next_states)
+            deltas = rewards.detach().squeeze() + self.GAMMA*values_next.detach().squeeze()*(1-dones.detach().squeeze()) - values.detach().squeeze()
+            advantages = torch.zeros_like(deltas).to(self.device)
+            running_advantage = 0
+            for t in reversed(range(len(deltas))):
+                running_advantage = deltas[t]+self.GAMMA*self.LAMBDA*running_advantage*(1-dones[t])
+                advantages[t] = running_advantage
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+            target_values = advantages + values.detach().squeeze()
             dist = Categorical(actions_probs)
             new_log_probs = dist.log_prob(actions)
             entropy = dist.entropy()
 
             ratios = torch.exp(new_log_probs - log_probs.detach())
-            advantages = rewards_list - values.detach().squeeze()
 
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages
             loss_actor = -torch.min(surr1, surr2).mean()
 
-            loss_critic = mse_loss(values.squeeze(), rewards_list)
+            loss_critic = mse_loss(values.squeeze(), target_values)
             loss = loss_actor + 0.5*loss_critic-0.01*entropy.mean()
 
-            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.policy_target.load_state_dict(self.policy_local.state_dict())
+        self.policy_local.load_state_dict(self.policy_local.state_dict())
 
 
 
@@ -521,11 +528,13 @@ class Agent:
                 self.policy_local = MEANPolicy.load(path, device)
             else:
                 raise ValueError(f"Unknown model name: {self.model_name}")
-        else:
+        elif self.use_dqn:
             if self.model_name == "DQN":
                 self.policy_local = DqnPolicy.load(path, device)
-            else:
-                raise ValueError(f"Unknown model name: {self.model_name}")
+        elif self.use_ppo:
+            self.policy_local = PpoPolicy.load(path, device)
+        else:
+            raise ValueError(f"Unknown model name: {self.model_name}")
 
 
 @torch.jit.script

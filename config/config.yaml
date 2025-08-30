@@ -5,51 +5,51 @@
 seed: 9
 
 # Total number of training timesteps
-total_timesteps: 7000
+total_timesteps: 10000
 
 # Frequency of evaluation during training
-eval_freq: 200
+eval_freq: 500
 
 # Training schedule parameters
 training_schedule:
   # Timesteps at which changes occur
-  time_steps: [ 0, 2000, 4000, 5000, 6000 ]
+  time_steps: [ 0, 8000 ]
   # Number of pursuers at each stage
-  num_pursuers: [ 3, 4, 7, 11, 15 ]
+  num_pursuers: [ 3, 4]
   # Number of evaders at each stage
-  num_evaders: [ 1, 1, 2, 3, 4 ]
+  num_evaders: [ 1, 1]
   # Number of ocean current fields used at each stage
-  num_cores: [ 4, 6, 8, 8, 8 ]
+  num_cores: [ 4, 6]
   # Number of obstacles in the environment at each stage
-  num_obstacles: [ 0, 1, 2, 4, 6 ]
+  num_obstacles: [ 0, 1]
   # Minimum initial distance between pursuers and evaders
-  min_pursuer_evader_init_dis: [ 10.0, 13.0, 15.0, 20.0, 20.0 ]
+  min_pursuer_evader_init_dis: [ 10.0, 13.0]
 
 # Evaluation schedule parameters
 eval_schedule:
   # Number of episodes per evaluation configuration
   # Increase the number of episodes for more stable evaluation results
-  num_episodes: [ 20, 20, 20, 20, 20 ]
+  num_episodes: [ 3, 2]
 
   # Number of pursuers per evaluation step
   # Covers key stages from training: initial (3), mid-stage (7,11), late-stage (15,18)
-  num_pursuers: [ 3, 7, 11, 15, 18 ]
+  num_pursuers: [ 3, 7]
 
   # Number of evaders per evaluation step
   # Corresponding to different stages in training
-  num_evaders: [ 1, 2, 3, 4, 5 ]
+  num_evaders: [ 1, 2]
 
   # Number of processing units used per evaluation step
   # Adapt processing units based on task complexity
-  num_cores: [ 4, 6, 8, 8, 8 ]
+  num_cores: [ 4, 6]
 
   # Number of obstacles in the environment per evaluation step
   # Gradually increasing complexity
-  num_obstacles: [ 0, 2, 4, 6, 8 ]
+  num_obstacles: [ 0, 2]
 
   # Minimum initial distance between pursuers and evaders during evaluation
   # Use larger distances from the final stage of training to test stability
-  min_pursuer_evader_init_dis: [ 20.0, 20.0, 20.0, 20.0, 20.0 ]
+  min_pursuer_evader_init_dis: [ 20.0, 20.0]
 
 exp_schedule:
   # 20 episodes per evaluation configuration to ensure result stability
@@ -73,9 +73,9 @@ exp_schedule:
   min_pursuer_evader_init_dis: [ 10.0, 13.0, 15.0, 20.0, 20.0 ]
 
 # Whether to use Implicit Quantile Network (IQN) in training
-use_iqn: false
+use_iqn: true
 use_dqn: false
-use_ppo: true
+use_ppo: false
 
 # Training parameters
 training:

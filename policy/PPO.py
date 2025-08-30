@@ -32,26 +32,35 @@ def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
         nn.ReLU()
     )
 
-class ActorCritic(nn.Module):
-    def __init__(self, state_dim, action_dim):
-        super(ActorCritic, self).__init__()
-        self.shared_layer = nn.Sequential(
-            nn.Linear(state_dim, PpoConfig.hidden_dim),
+class Actor(nn.Module):
+    def __init__(self,state_dim, action_dim):
+        super(Actor, self).__init__()
+        self.net=nn.Sequential(
+            nn.Linear(state_dim,PpoConfig.hidden_dim),
             nn.ReLU(),
-            nn.Linear(PpoConfig.hidden_dim, PpoConfig.hidden_dim),
-            nn.ReLU()
+            nn.Linear(PpoConfig.hidden_dim,PpoConfig.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(PpoConfig.hidden_dim,action_dim)
         )
-        self.actor = nn.Sequential(
-            nn.Linear(PpoConfig.hidden_dim, action_dim),
-            nn.Softmax(dim=-1)
-        )
-        self.critic = nn.Linear(PpoConfig.hidden_dim, 1)
-
     def forward(self, state):
-        shared = self.shared_layer(state)
-        action_probs = self.actor(shared)
-        state_value = self.critic(shared)
-        return action_probs, state_value
+        net = self.net(state)
+        probs = F.softmax(net, dim=1)
+        return probs
+    
+class Critic(nn.Module):
+    def __init__(self,state_dim):
+        super(Critic, self).__init__()
+        self.net=nn.Sequential(
+            nn.Linear(state_dim,PpoConfig.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(PpoConfig.hidden_dim,PpoConfig.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(PpoConfig.hidden_dim,1)
+        )
+    def forward(self, state):
+        net = self.net(state)
+        return net
+
 
 
 class TargetSelectionModule(nn.Module):
@@ -156,9 +165,9 @@ class PpoPolicy(nn.Module):
             'evaders': 7,  # [px, py, vx, vy, dist, pos_angle, head_angle]
             'obstacles': 5  # [px, py, radius, dist, angle]
         }
-
-        self.policy = ActorCritic(self.hidden_dim,self.action_dim).to(self.device)
-
+        
+        self.actor = Actor(self.hidden_dim, self.action_dim).to(self.device)
+        self.critic = Critic(self.hidden_dim).to(self.device)
         self.entity_encoders = nn.ModuleDict({
             name: encoder(dim, self.hidden_dim)
             for name, dim in self.feature_dims.items()
@@ -198,7 +207,7 @@ class PpoPolicy(nn.Module):
         if not all(key in obs for key in required_keys):
             raise ValueError(f"obs must contain keys: {required_keys}")
 
-        if obs['self'].dim() != 2:
+        if obs['self'].ndim != 2:
             raise ValueError("self features must be 2-dimensional [batch_size, feature_dim]")
 
         if obs['self'].shape[1] != self.feature_dims['self']:
@@ -252,7 +261,9 @@ class PpoPolicy(nn.Module):
         self._validate_input(obs)
 
         features = self.encoded_entities(obs)
-        action_probs, values = self.policy(features)
+        # action_probs, values = self.policy(features)
+        action_probs = self.actor(features)
+        values = self.critic(features)
         return action_probs, values
 
     def get_attention_weights(self) -> Dict[str, torch.Tensor]:
