@@ -18,6 +18,8 @@ class PpoConfig:
     action_size: int = 9
     device: str = 'cpu'
     seed: int = 0
+    a_max: float = 0.4
+    w_max: float = 0.5235987755982988
     # learning_rate: float = 0.002
     # gradient_clip: float = 1.0
     # gamma = 0.99
@@ -33,19 +35,27 @@ def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
     )
 
 class Actor(nn.Module):
-    def __init__(self,state_dim, action_dim):
+    def __init__(self,state_dim, action_dim,action_max):
         super(Actor, self).__init__()
-        self.net=nn.Sequential(
+        self.mean_layer=nn.Sequential(
             nn.Linear(state_dim,PpoConfig.hidden_dim),
             nn.ReLU(),
             nn.Linear(PpoConfig.hidden_dim,PpoConfig.hidden_dim),
             nn.ReLU(),
             nn.Linear(PpoConfig.hidden_dim,action_dim)
         )
+        self.log_std_layer = nn.Sequential(
+            nn.Linear(state_dim,PpoConfig.hidden_dim),
+            nn.ReLU(),
+            nn.Linear(PpoConfig.hidden_dim,action_dim)
+        )
+        self.action_max = action_max
     def forward(self, state):
-        net = self.net(state)
-        probs = F.softmax(net, dim=1)
-        return probs
+        mean = self.mean_layer(state)*self.action_max
+        log_std = self.log_std_layer(state)
+        log_std = torch.clamp(log_std,-1,1)
+        std = torch.exp(log_std)
+        return torch.distributions.Normal(mean,std)
     
 class Critic(nn.Module):
     def __init__(self,state_dim):
@@ -155,7 +165,8 @@ class PpoPolicy(nn.Module):
         
         self.config = config
         self.hidden_dim = config.hidden_dim
-        self.action_dim = config.action_size
+        self.action_dim = 2
+        self.action_dim = [config.a_max,config.w_max]
         self.device = config.device
         torch.manual_seed(config.seed)
 

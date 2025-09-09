@@ -122,9 +122,9 @@ pursuer:
   # Distance within which the pursuer can capture an evader
   distance_capture: env.capture_distance
   # Available acceleration values for the pursuer
-  a: [ -0.4, 0.0, 0.4 ]
+  a_max: 0.4
   # Available angular velocity (turning speed) values for the pursuer
-  w: [ -0.5235987755982988, 0.0, 0.5235987755982988 ]
+  w_max: 0.5235987755982988
   # Perception range of the pursuer
   perception_range: 20.0
 

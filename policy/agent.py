@@ -220,9 +220,8 @@ class Agent:
             self.policy_local.train()
 
         with torch.no_grad():
-            action_probs, _ = self.policy_local(state)
+            dist, _ = self.policy_local(state)
         self.policy_local.train()
-        dist = Categorical(action_probs)
         action = dist.sample()
         action_log_prob = dist.log_prob(action)
         return action_log_prob, action
@@ -459,7 +458,7 @@ class Agent:
         mse_loss = torch.nn.MSELoss()
 
         for _ in range(self.k_epochs):
-            actions_probs, values = self.policy_local(old_states)
+            dist, values = self.policy_local(old_states)
             _,values_next = self.policy_local(next_states)
             deltas = rewards.detach().squeeze() + self.GAMMA*values_next.detach().squeeze()*(1-dones.detach().squeeze()) - values.detach().squeeze()
             advantages = torch.zeros_like(deltas).to(self.device)
@@ -469,11 +468,11 @@ class Agent:
                 advantages[t] = running_advantage
             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             target_values = advantages + values.detach().squeeze()
-            dist = Categorical(actions_probs)
             new_log_probs = dist.log_prob(actions)
             entropy = dist.entropy()
 
             ratios = torch.exp(new_log_probs - log_probs.detach())
+            ratios = ratios.sum(dim=1)
 
             surr1 = ratios * advantages
             surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * advantages

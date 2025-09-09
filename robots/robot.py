@@ -234,7 +234,7 @@ class Robot:
         self.x += dis[0]
         self.y += dis[1]
 
-        a, w = self.action_list[action]
+        a, w = action
         # Apply water resistance
         self.speed += (a - self.coefficient_water_resistance * self.speed) * self.dt
         self.speed = np.clip(self.speed, 0.0, self.max_speed)
