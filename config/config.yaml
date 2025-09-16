@@ -5,7 +5,7 @@
 seed: 9
 
 # Total number of training timesteps
-total_timesteps: 10000
+total_timesteps: 1000000
 
 # Frequency of evaluation during training
 eval_freq: 500
@@ -13,7 +13,7 @@ eval_freq: 500
 # Training schedule parameters
 training_schedule:
   # Timesteps at which changes occur
-  time_steps: [ 0, 8000 ]
+  time_steps: [ 0, 50000 ]
   # Number of pursuers at each stage
   num_pursuers: [ 3, 4]
   # Number of evaders at each stage
@@ -53,29 +53,29 @@ eval_schedule:
 
 exp_schedule:
   # 20 episodes per evaluation configuration to ensure result stability
-  num_episodes: [ 20, 20, 20, 20, 20 ]
+  num_episodes: [ 10]
 
   # Number of pursuers set to 3, 7, 11, 15, 18
   # Represents a progressive increase, making stage differences more noticeable
-  num_pursuers: [ 3, 7, 11, 15, 18 ]
+  num_pursuers: [ 3]
 
   # Number of evaders increasing from 1 to 5
   # Maintains a reasonable ratio to pursuers (~1:3)
-  num_evaders: [ 1, 2, 3, 4, 5 ]
+  num_evaders: [ 1]
 
-  num_cores: [ 4, 6, 8, 8, 8 ]
+  num_cores: [ 4 ]
 
   # Number of obstacles gradually increasing to reflect increasing environmental complexity
-  num_obstacles: [ 0, 2, 4, 6, 8 ]
+  num_obstacles: [ 0 ]
 
   # Initial minimum distance uniformly set to 20.0
   # Uses larger distances to test algorithm stability
-  min_pursuer_evader_init_dis: [ 10.0, 13.0, 15.0, 20.0, 20.0 ]
+  min_pursuer_evader_init_dis: [ 10.0]
 
 # Whether to use Implicit Quantile Network (IQN) in training
-use_iqn: true
+use_iqn: false
 use_dqn: false
-use_ppo: false
+use_ppo: true
 
 # Training parameters
 training:
@@ -86,11 +86,11 @@ training:
 # Environment parameters
 env:
   # Width of the environment
-  width: 120.0
+  width: 45.0
   # Height of the environment
-  height: 120.0
+  height: 45.0
   # Radius around the pursuer that must be free of objects
-  clear_r: 15.0
+  clear_r: 5.0
   # Range of obstacle radius
   obs_r_range: [ 1.0, 1.1 ]
 
@@ -126,7 +126,7 @@ pursuer:
   # Available angular velocity (turning speed) values for the pursuer
   w: [ -0.5235987755982988, 0.0, 0.5235987755982988 ]
   # Perception range of the pursuer
-  perception_range: 20.0
+  perception_range: 10.0
 
 # Evader agent parameters
 evader:
