@@ -11,7 +11,7 @@ from torch.nn import functional as F
 
 from policy.PPO import PpoPolicy, PpoConfig
 from policy.DQN import DqnPolicy, DqnConfig
-from policy.TERL_model import TERLPolicy, TERLConfig
+from policy.TERL_model import TERLPolicy, TERLConfig, MADDPGConfig,MADDPGTERLActor,MADDPGTERLCritic
 from policy.ablation_mlp_with_target_selection import MlpWithTargetSelectPolicy, MlpWithTargetSelectConfig
 from policy.ablation_transformer_without_target_selection import TransformerWithoutTargetSelectPolicy, TransformerWithoutTargetSelectConfig
 from policy.IQN import IQNPolicy, IQNConfig
@@ -59,6 +59,8 @@ class Agent:
                  seed=0,
                  training=True,
                  use_iqn=True,
+                 use_maddpg = False,
+                 ip = 0,
                  use_dqn = False,
                  use_ppo = False,
                  model_name=None,
@@ -94,7 +96,9 @@ class Agent:
         self.use_iqn = use_iqn
         self.use_dqn = use_dqn
         self.use_ppo = use_ppo
+        self.use_maddpg = use_maddpg
         self.model_name = model_name
+        self.ip = ip
 
         # Set random seed
         random.seed(seed)
@@ -207,10 +211,27 @@ class Agent:
                     self.optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
                     #self.actor_optimizer = optim.Adam(self.policy_local.actor.parameters(), lr=self.LR)
                     #self.critic_optimizer = optim.Adam(self.policy_local.critic.parameters(), lr=self.LR)
+            elif use_maddpg:
+                config = MADDPGConfig(
+                    num_agents=4,
+                    critic_hidden_dim=hidden_dimension,
+                    actor_lr=LR,
+                    critic_lr=LR,
+                    tau=TAU,
+                    gamma=GAMMA
+                )
+                self.policy_local = MADDPGTERLActor(config=config, ip=self.ip)
+                self.policy_target = MADDPGTERLActor(config=config, ip=self.ip)
+                self.critic_local = MADDPGTERLCritic(config=config, ip=self.ip)
+                self.critic_target = MADDPGTERLCritic(config=config, ip=self.ip)
+                self.policy_target.load_state_dict(self.policy_local.state_dict())
+                self.critic_target.load_state_dict(self.critic_local.state_dict())
+                self.policy_optimizer = optim.Adam(self.policy_local.parameters(), lr=self.LR)
+                self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=self.LR)
             if use_ppo:
                 self.memory = PpoReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
             else:
-                self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 5, 8, 5)
+                self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 4, 1, 2)
 
     def act_ppo(self, state, use_eval=True):
         state = self.convert_to_tensor(state, self.device)
@@ -271,6 +292,20 @@ class Agent:
             # Other types remain unchanged
             return data
 
+    def act_maddpg(self, state,eps=0.0, use_eval=True):
+        state = self.convert_to_tensor(state, self.device)
+        if use_eval:
+            self.policy_local.eval()
+        else:
+            self.policy_local.train()
+        with torch.no_grad():
+            action = self.policy_local(state)
+        if random.random() > eps:
+            action = np.argmax(action.cpu().data.numpy())
+        else:
+            action = random.choice(np.arange(self.action_size))
+        return action
+    
     def act(self, state, eps=0.0, cvar=1.0, use_eval=True):
         """
         Select action based on IQN policy.
@@ -360,7 +395,7 @@ class Agent:
 
         return cvar
 
-    def train(self):
+    def train(self,memory,agents,i):
         """
         Select training method based on policy.
 
@@ -373,6 +408,60 @@ class Agent:
             return self.train_DQN()
         elif self.use_ppo:
             return self.train_ppo()
+        elif self.use_maddpg:
+            return self.train_MADDPG(memory,agents,i)
+
+    def train_MADDPG(self,memory,agents,i):
+        batch = memory.sample()
+        actions = batch['actions'].reshape(-1,len(agents))
+        # actions = actions.reshape(-1,len(agents))
+        rewards = batch['rewards'].reshape(-1,len(agents))
+        rewards = rewards.mean(dim=1,keepdim=True)
+        dones = batch['dones'].reshape(-1,1)
+        states = batch['observations']
+        bef_global_obs = batch['bef_global']
+        total_length = bef_global_obs.shape[0]
+        indices = torch.arange(0, total_length, step=len(agents), device=self.device)
+        bef_global_obs = bef_global_obs[indices]
+        dones = dones[indices]
+        aft_global_obs = batch['aft_global']
+        aft_global_obs = aft_global_obs[indices]
+
+        batch_obs_list = []
+        for batch_idx in range(states['self'].shape[0]):
+            agent_obs={key: value[batch_idx].unsqueeze(0) for key, value in states.items()}
+            batch_obs_list.append(agent_obs)
+        #更新critic网络
+        with torch.no_grad():
+            batch_a_next_n = [agents[i%(len(agents))].policy_target(state) for i,state in enumerate(batch_obs_list)]
+            processed_tensors = [tensor.squeeze(dim=0) for tensor in batch_a_next_n]
+            batch_a_next_n = torch.stack(processed_tensors, dim=0) 
+            dist = torch.distributions.Categorical(probs=batch_a_next_n)
+            batch_a_next_n = dist.sample()
+            log_prob = dist.log_prob(batch_a_next_n)
+            batch_a_next_n = batch_a_next_n.reshape(aft_global_obs.shape[0],-1)
+            Q_next = agents[i].critic_target(aft_global_obs, batch_a_next_n)
+            expected_next_Q = (Q_next*log_prob).sum(dim=1,keepdim=True)
+            target_Q = rewards+agents[i].GAMMA*(1-dones)*expected_next_Q
+
+        current_Q = agents[i].critic_local(bef_global_obs, actions)
+        loss = F.mse_loss(current_Q, target_Q)
+        agents[i].critic_optimizer.zero_grad()
+        loss.backward()
+        agents[i].critic_optimizer.step()
+        #更新actor网络
+        actions = agents[i].policy_local(states)
+        dist_action = torch.distributions.Categorical(actions)
+        actions = dist_action.sample()
+        actions = actions.reshape(aft_global_obs.shape[0],-1)
+        actor_loss = -agents[i].critic_local(bef_global_obs, actions).mean()
+        agents[i].policy_optimizer.zero_grad()
+        actor_loss.backward()
+        agents[i].policy_optimizer.step()
+
+
+
+
 
     def train_IQN(self):
         """
@@ -381,10 +470,12 @@ class Agent:
         Returns:
             float: Training loss.
         """
-        states, actions, rewards, next_states, dones = self.memory.sample().values()
-        actions = actions.unsqueeze(-1).long()
-        rewards = rewards.unsqueeze(-1).float()
-        dones = dones.unsqueeze(-1).float()
+        batch, indices, weights = self.memory.sample()
+        actions = batch['actions'].unsqueeze(-1).long()
+        rewards = batch['rewards'].unsqueeze(-1).float()
+        dones = batch['dones'].unsqueeze(-1).float()
+        states = batch['observations']
+        next_states = batch['next_observations']
 
         self.optimizer.zero_grad()
         # Get max predicted Q values (for next states) from target model
@@ -399,6 +490,8 @@ class Agent:
 
         # Quantile Huber loss
         td_error = Q_targets - Q_expected
+        torch_errors = td_error.sum(dim=1).mean(dim=1)
+        torch_errors = torch_errors.unsqueeze(-1)
         assert td_error.shape == (self.BATCH_SIZE, 8, 8), "wrong td error shape"
         huber_l = calculate_huber_loss(td_error, 1.0)
         quantil_l = abs(taus - (td_error.detach() < 0).float()) * huber_l / 1.0
@@ -410,6 +503,7 @@ class Agent:
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.policy_local.parameters(), 0.5)
         self.optimizer.step()
+        self.memory.update_priorities(indices, torch_errors.detach())
 
         return loss.detach().cpu().numpy()
 
@@ -490,12 +584,14 @@ class Agent:
 
 
 
-    def soft_update(self):
+    def soft_update(self, agents, i):
         """
         Soft update model parameters.
         θ_target = τ * θ_local + (1 - τ) * θ_target
         """
-        for target_param, local_param in zip(self.policy_target.parameters(), self.policy_local.parameters()):
+        for target_param, local_param in zip(agents[i].policy_target.parameters(), agents[i].policy_local.parameters()):
+            target_param.data.copy_(self.TAU * local_param.data + (1.0 - self.TAU) * target_param.data)
+        for target_param, local_param in zip(agents[i].critic_target.parameters(), agents[i].critic_local.parameters()):
             target_param.data.copy_(self.TAU * local_param.data + (1.0 - self.TAU) * target_param.data)
 
     def save_latest_model(self, directory):

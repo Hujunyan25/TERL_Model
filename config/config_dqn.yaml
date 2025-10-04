@@ -143,4 +143,4 @@ apf:
 
 perception:
   # Maximum number of observable evaders
-  max_evader_num: 8
+  max_evader_num: 1

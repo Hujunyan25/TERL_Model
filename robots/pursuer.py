@@ -52,14 +52,16 @@ class Pursuer(Robot):
 
         self.distance_capture = self.pur_config.get("env.capture_distance", default=8.0)  # Capture range threshold
         self.angle_capture = np.pi  # Minimum encirclement angle required for capture
+        self.env_width = self.pur_config.get("env.width", default=100.0)
+        self.env_height = self.pur_config.get("env.height", default=100.0)
 
         # Precomputed values
         self.compute_k()  # Compute and update water resistance coefficient
         self.compute_actions()  # Compute and update action list
 
         self.num_self_state = 4
-        self.num_static_state = 25
-        self.num_pursuer_state = 35
+        self.num_static_state = 2*5
+        self.num_pursuer_state = 4*7
         self.num_evader_state = 7 * self.perception.max_evader_num
 
         self.num_self_feature = 4
@@ -274,6 +276,7 @@ class Pursuer(Robot):
             assert len(self.perception.observation["self"]) == self.num_self_state
 
         # Perception of other pursuers (cooperative pursuit)
+        distance_r = []
         for k, pursuer in enumerate(pursuers):
             if pursuer is self:
                 continue
@@ -287,6 +290,7 @@ class Pursuer(Robot):
 
             if not self.collision:
                 self.check_collision(pursuer.x, pursuer.y, pursuer.r)
+            
 
             if in_robot_frame:
                 pos_r = self.project_to_robot_frame(np.array([pursuer.x, pursuer.y]), False)
@@ -295,7 +299,11 @@ class Pursuer(Robot):
                 angle = np.arctan2(pos_r[1], pos_r[0])
                 pursuing_signal = pursuer.is_pursuing
                 new_obs = list(np.concatenate((pos_r, v_r, [dis, angle, pursuing_signal])))
+                distance_r.append(np.linalg.norm(pos_r-self.perception.observation["self"][:2]))
                 self.perception.observation["pursuers"].append(new_obs)
+        combined=list(zip(distance_r,self.perception.observation["pursuers"]))
+        combined_sorted = sorted(combined,key=lambda x:x[0])
+        self.perception.observation["pursuers"] = [x[1] for x in combined_sorted]
 
         # Handle pursuer masks
         pursuer_observed_count = len(self.perception.observation["pursuers"])
@@ -305,6 +313,7 @@ class Pursuer(Robot):
         self.perception.observation['masks'].extend(pursuer_masks[:self.perception.max_pursuer_num])
 
         # Evader perception
+        distance_r.clear()
         for j, evader in enumerate(evaders):
             if evader.deactivated:
                 continue
@@ -321,7 +330,11 @@ class Pursuer(Robot):
                 pos_angle = np.arctan2(pos_r[1], pos_r[0])
                 heading_angle_error: list = utils.calculate_angle_from_components(float(v_r[0]), float(v_r[1]))
                 new_obs = list(np.concatenate((pos_r, v_r,))) + [dis, pos_angle] + heading_angle_error
+                distance_r.append(np.linalg.norm(pos_r-self.perception.observation["self"][:2]))
                 self.perception.observation["evaders"].append(new_obs)
+        combined_evader=list(zip(distance_r,self.perception.observation["evaders"]))
+        combined_sorted_evader = sorted(combined_evader,key=lambda x:x[0])
+        self.perception.observation["evaders"] = [x[1] for x in combined_sorted_evader]
 
         evader_observed_count = len(self.perception.observation["evaders"])
         evader_masks = [True] * min(evader_observed_count, self.perception.max_evader_num)
@@ -330,6 +343,7 @@ class Pursuer(Robot):
         self.perception.observation['masks'].extend(evader_masks[:self.perception.max_evader_num])
 
         # Static obstacle perception
+        distance_r.clear()
         for i, obs in enumerate(obstacles):
             if not self.check_detection(obs.x, obs.y, obs.r):
                 continue
@@ -343,7 +357,11 @@ class Pursuer(Robot):
                 pos_r = self.project_to_robot_frame(np.array([obs.x, obs.y]), False)
                 dis = np.linalg.norm(pos_r)
                 pos_angle = np.arctan2(pos_r[1], pos_r[0])
+                distance_r.append(np.linalg.norm(pos_r-self.perception.observation["self"][:2]))
                 self.perception.observation["statics"].append([pos_r[0], pos_r[1], obs.r, dis, pos_angle])
+        combined_static=list(zip(distance_r,self.perception.observation["statics"]))
+        combined_sorted_static = sorted(combined_static,key=lambda x:x[0])
+        self.perception.observation["statics"] = [x[1] for x in combined_sorted_static]
 
         static_observed_count = len(self.perception.observation["statics"])
         static_masks = [True] * min(static_observed_count, self.perception.max_obstacle_num)
@@ -375,6 +393,21 @@ class Pursuer(Robot):
         assert len(evader_observations) == self.num_evader_state
         assert len(pursuer_observations) == self.num_pursuer_state
 
+
+        global_observation = []
+        for pursuer in pursuers:
+            if pursuer.deactivated: 
+                global_observation.extend((-1e9,-1e9,-1e9,-1e9,-1e9))
+            else:
+                global_observation.extend((pursuer.x,pursuer.y,pursuer.speed,pursuer.theta,pursuer.is_pursuing))
+        for evader in evaders:
+            if evader.deactivated:
+                global_observation.extend((-1e9,-1e9,-1e9,-1e9))
+            else:
+                global_observation.extend((evader.x,evader.y,evader.speed,evader.theta))
+        for obstacle in obstacles:
+            global_observation.extend((obstacle.x,obstacle.y,obstacle.r))
+
         # Organize observations into structured format
         observation_dict = {
             "self": np.array(self_state).reshape(self.num_self_feature),
@@ -382,7 +415,8 @@ class Pursuer(Robot):
             "evaders": np.array(evader_observations).reshape(-1, self.num_evader_feature),
             "obstacles": np.array(static_observations).reshape(-1, self.num_static_feature),
             "masks": np.array(self.perception.observation['masks']),  # Boolean masks indicating valid observations
-            "types": np.array(self.perception.observation['types'])  # Entity type identifiers
+            "types": np.array(self.perception.observation['types']),  # Entity type identifiers
+            "global": np.array(global_observation)
         }
 
         return observation_dict, self.collision

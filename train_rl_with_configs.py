@@ -34,6 +34,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "-N", "--model-name", nargs='+', default=[
+        "MADDPG",  # match the config file: config.yaml
         "TERL",  # match the config file: config.yaml
         "MlpWithTargetSelect",  # match the config file: config.yaml, corresponding to 'w/o Relation-Extraction'
         "TransformerWithoutTargetSelect",  # match the config file: config.yaml, corresponding to 'w/o Target-Selection'
@@ -161,22 +162,26 @@ def run_trial(device, config_file):
 
         # Initialize agents
         # assert (model_name == "DQN") ^ params["use_iqn"], "Model name and use_iqn should match"
-        pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],seed=params["seed"] + 100,
-                              model_name=args.model_name[args.model_index])
+        pursuer_agents = []
+        for i in range(params["training_schedule"]["num_pursuers"][0]):
+            pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],use_maddpg=params["use_maddpg"],seed=params["seed"] + 100+i,
+                                  model_name=args.model_name[args.model_index])
+            pursuer_agents.append(pursuer_agent)
+            if "load_model" in params:
+                pursuer_agent.load_model(path=params["load_model"], device=device)
+                logger.info(f"Process {process_id} - Model loaded")
+        # pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],use_maddpg=params["use_maddpg"],seed=params["seed"] + 100,
+        #                       model_name=args.model_name[args.model_index])
         logger.info(f"Process {process_id} - Agents initialized with model: {pursuer_agent.model_name}")
         evader_agent = ApfAgent(train_env.evaders[0].a, train_env.evaders[0].w)
         logger.info(f"Process {process_id} - Agents initialized")
-
-        if "load_model" in params:
-            pursuer_agent.load_model(path=params["load_model"], device=device)
-            logger.info(f"Process {process_id} - Model loaded")
 
         # Trainer setup
 
         trainer = Trainer(
             train_env=train_env, eval_env=eval_env,
             eval_schedule=params["eval_schedule"],
-            pursuer_agent=pursuer_agent, evader_agent=evader_agent,
+            pursuer_agents=pursuer_agents, evader_agent=evader_agent,
             device=device
         )
 

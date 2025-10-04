@@ -16,7 +16,7 @@ from policy.agent import Agent
 from thirdparty.APF import ApfAgent
 from utils import logger as logger
 from config_manager import ConfigManager
-
+from policy.replay_buffer import ReplayBuffer
 
 class Trainer:
     """
@@ -53,12 +53,12 @@ class Trainer:
                  train_env: MarineEnv,
                  eval_env: MarineEnv,
                  eval_schedule: dict,
-                 pursuer_agent: Agent = None,
+                 pursuer_agents: list = None,
                  evader_agent: ApfAgent = None,
                  episode_max_length: int = 3000,
                  update_every: int = 4,
-                 learning_starts: int = 3000,
-                 target_update_interval: int = 10000,
+                 learning_starts: int = 300,
+                 target_update_interval: int = 1000,
                  exploration_fraction: float = 0.25,
                  initial_eps: float = 0.6,
                  final_eps: float = 0.05,
@@ -84,7 +84,7 @@ class Trainer:
         self.device = device
         self.train_env = train_env
         self.eval_env = eval_env
-        self.pursuer_agent = pursuer_agent
+        self.pursuer_agents = pursuer_agents
         self.evader_agent = evader_agent
         self.eval_config = []
         self.create_eval_configs(eval_schedule)
@@ -118,6 +118,9 @@ class Trainer:
 
         self.trajectory_buffer = []
 
+        BUFFER_SIZE = 1000000
+        BATCH_SIZE = 128
+        self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, device, 4, 1, 2)
     def create_eval_configs(self, eval_schedule: dict):
         """
         Create evaluation configurations.
@@ -200,6 +203,7 @@ class Trainer:
             eps = self.linear_eps(total_timesteps)
 
             states = [self.convert_to_tensor(state, self.device) for state in states]
+            
             # Get actions for all robots
             actions = []
             action_probs = []
@@ -209,16 +213,19 @@ class Trainer:
                     action_probs.append(None)
                     continue
 
-                if self.pursuer_agent.use_iqn:
-                    action, _, _ = self.pursuer_agent.act(states[i], eps)
-                    actions.append(action)
-                elif self.pursuer_agent.use_dqn:
-                    action, _ = self.pursuer_agent.act_dqn(states[i], eps)
-                    actions.append(action)
-                elif self.pursuer_agent.use_ppo:
-                    action_prob, action = self.pursuer_agent.act_ppo(states[i])
-                    actions.append(action)
-                    action_probs.append(action_prob)
+                # if self.pursuer_agent.use_iqn:
+                #     action, _, _ = self.pursuer_agent.act(states[i], eps)
+                #     actions.append(action)
+                # elif self.pursuer_agent.use_dqn:
+                #     action, _ = self.pursuer_agent.act_dqn(states[i], eps)
+                #     actions.append(action)
+                # elif self.pursuer_agent.use_ppo:
+                #     action_prob, action = self.pursuer_agent.act_ppo(states[i])
+                #     actions.append(action)
+                #     action_probs.append(action_prob)
+                # elif self.pursuer_agent.use_maddpg:
+                action = self.pursuer_agents[i].act_maddpg(states[i],eps)
+                actions.append(action)
 
             evader_actions = []
             for j, evader in enumerate(self.train_env.evaders):
@@ -232,52 +239,52 @@ class Trainer:
             # self.log_positions(ep_num)
 
             # Execute actions and get next states
-            next_states, rewards, dones, infos = self.train_env.step((actions, evader_actions))
+            next_states, rewards, dones, infos,Done, bef_global_obs,aft_global_obs = self.train_env.step((actions, evader_actions))
+            bef_global_obs = torch.tensor(bef_global_obs,dtype=torch.float32,device=self.device)
+            aft_global_obs = torch.tensor(aft_global_obs,dtype=torch.float32,device=self.device)
             next_evader_states, _ = self.train_env.get_evaders_observation()
-            next_states = [self.convert_to_tensor(state, self.device) for state in next_states]
+            # next_states = [self.convert_to_tensor(state, self.device) for state in next_states]
 
             # Save experience to replay buffer
+            if all(pursuer.deactivated is False for pursuer in self.train_env.pursuers):
+                for i, pursuer in enumerate(self.train_env.pursuers):
+                    ep_rewards[i] += self.pursuer_agents[i].GAMMA ** ep_length * rewards[i]
+                    if self.pursuer_agents[i].training:
+                        # if self.pursuer_agent.use_ppo:
+                        #     self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i], action_probs[i])
+                        # else:
+                        self.memory.add(states[i], actions[i], rewards[i], Done,bef_global_obs,aft_global_obs)
             for i, pursuer in enumerate(self.train_env.pursuers):
-                if pursuer.deactivated:
-                    continue
-
-                ep_rewards[i] += self.pursuer_agent.GAMMA ** ep_length * rewards[i]
-                if self.pursuer_agent.training:
-                    if self.pursuer_agent.use_ppo:
-                        self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i], action_probs[i])
-                    else:
-                        self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i])
-
-                if pursuer.collision:
-                    pursuer.deactivated = True
-                    ep_deactivated_t[i] = ep_length
+                    if pursuer.collision:
+                        pursuer.deactivated = True
+                        ep_deactivated_t[i] = ep_length
 
             end_episode = (ep_length >= self.episode_max_length) or self.train_env.check_all_evader_is_captured() or \
                           len([pur for pur in self.train_env.pursuers if not pur.deactivated]) < 3  # Fewer than 3 active pursuers in the environment
 
             # Learn, update, and evaluate model
             if self.current_timestep >= self.learning_starts:
-                for agent in [self.pursuer_agent]:
+                for i, agent in enumerate(self.pursuer_agents):
                     if agent is None or not agent.training:
                         continue
 
                     # Learn every UPDATE_EVERY steps
-                    if self.current_timestep % self.UPDATE_EVERY == 0 and agent.memory.size > agent.BATCH_SIZE:
-                        agent.train()
+                    if self.current_timestep % self.UPDATE_EVERY == 0 and self.memory.size > 128:
+                        agent.train(self.memory, self.pursuer_agents, i)
 
                     # Update target model every target_update_interval steps
                     if self.current_timestep % self.target_update_interval == 0:
-                        agent.soft_update()
+                        agent.soft_update(self.pursuer_agents,i)
 
                 # Evaluate every eval_freq steps
                 if self.current_timestep == self.learning_starts or self.current_timestep % eval_freq == 0:
-                    self.evaluation()
+                    # self.evaluation()
                     # self.save_evaluation(eval_log_path)
-                    for agent in [self.pursuer_agent]:
+                    for agent in self.pursuer_agents:
                         if agent is None or not agent.training:
                             continue
                         # Save the latest models
-                        agent.save_latest_model(eval_log_path)
+                        # agent.save_latest_model(eval_log_path)
 
             if end_episode:
                 ep_num += 1
@@ -296,6 +303,7 @@ class Trainer:
                 if verbose:
                     logger.info(f"Process {os.getpid()} ======== Episode Info ========")
                     logger.info(f"Process {os.getpid()} - current ep_length: {ep_length}")
+                    logger.info(f"Process {os.getpid()} - success: {self.train_env.check_all_evader_is_captured()}")
                     logger.info(f"Process {os.getpid()} - current ep_num: {ep_num}")
                     logger.info(f"Process {os.getpid()} - current exploration rate: {eps}")
                     logger.info(f"Process {os.getpid()} - current timesteps: {self.current_timestep}")
@@ -421,12 +429,14 @@ class Trainer:
                         action.append(None)
                         continue
 
-                    if self.pursuer_agent.use_iqn:
-                        a, _, _ = self.pursuer_agent.act(state[i])
-                    elif self.pursuer_agent.use_dqn:
-                        a, _ = self.pursuer_agent.act_dqn(state[i])
-                    elif self.pursuer_agent.use_ppo:
-                        _,a = self.pursuer_agent.act_ppo(state[i])
+                    # if self.pursuer_agent.use_iqn:
+                    #     a, _, _ = self.pursuer_agent.act(state[i])
+                    # elif self.pursuer_agent.use_dqn:
+                    #     a, _ = self.pursuer_agent.act_dqn(state[i])
+                    # elif self.pursuer_agent.use_ppo:
+                    #     _,a = self.pursuer_agent.act_ppo(state[i])
+                    if self.pursuer_agents[i].use_maddpg:
+                        a = self.pursuer_agents[i].act_maddpg(state[i],0.6)
 
                     action.append(a)
 
@@ -448,7 +458,7 @@ class Trainer:
                     if rob.deactivated:
                         continue
 
-                    rewards[i] += self.pursuer_agent.GAMMA ** length * reward[i]
+                    rewards[i] += self.pursuer_agents[i].GAMMA ** length * reward[i]
                     times[i] += rob.dt * rob.N
                     energies[i] += rob.compute_action_energy_cost(action[i])
                     # obs[i].append(copy.deepcopy(rob.perception.observed_obstacles))

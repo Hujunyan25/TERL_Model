@@ -17,6 +17,7 @@ from config_manager import ConfigManager
 from robots.evader import Evader
 from robots.pursuer import Pursuer
 from utils import logger as logger
+import itertools
 
 
 class Core:
@@ -411,6 +412,8 @@ class MarineEnv(gym.Env):
         """
         return all(rob.deactivated for rob in self.evaders)
 
+
+
     def check_all_evader_is_captured(self) -> bool:
         """
         Check if all evaders have been captured.
@@ -514,6 +517,42 @@ class MarineEnv(gym.Env):
             "Number of distances should be equal "
             "to number of pursuers")
         return all_pursuers_distance_to_other_pursuers
+    
+    def get_angle_to_pursuers(self,evader,pursuers, ids):
+        a = np.array(pursuers[ids[0]].x, pursuers[ids[0]].y)-np.array(evader.x, evader.y)
+        b = np.array(pursuers[ids[1]].x, pursuers[ids[1]].y)-np.array(evader.x, evader.y)
+        dot_product = np.dot(a, b)
+        norm_a = np.linalg.norm(a)
+        norm_b = np.linalg.norm(b)
+        cos_theta = np.clip(dot_product / (norm_a * norm_b), -1.0, 1.0)
+        theta_rad = np.arccos(cos_theta)
+        return theta_rad
+    
+    def determine_if_captured(self):
+        all_pursuers_distance = []
+        id = []
+        num_in_distance = 0
+        for evader in self.evaders:
+            for i,pursuer in enumerate(self.pursuers):
+                if pursuer.deactivated:
+                    all_pursuers_distance.append(None)
+                    continue
+                pursuer_distance = np.linalg.norm(np.array([evader.x, evader.y]) - np.array([pursuer.x, pursuer.y]))
+                if pursuer_distance < self.pursuers[0].distance_capture:
+                    num_in_distance += 1
+                    id.append(i)
+                all_pursuers_distance.append(pursuer_distance)
+        if num_in_distance>=3:
+            combs = itertools.combinations(id, 2)
+            angles = []
+            for comb in combs:
+                angles.append(self.get_angle_to_pursuers(self.evaders[0],self.pursuers,comb))
+            if np.max(angles)<=np.pi and np.max(angles)<=3*np.min(angles):
+                self.evaders[0].deactivated = True
+            
+                
+
+    
 
     def update_pursuers_states(self, pursuer_actions: List[int]):
         """
@@ -680,6 +719,7 @@ class MarineEnv(gym.Env):
         # Get pre-update pursuer distances to targets
         all_pursuers_dis_before = self.get_pursuers_distance_evaders()
 
+        bef_global_obs = self.global_observation()
         # Update pursuer states
         self.update_pursuers_states(pursuer_actions)
 
@@ -696,6 +736,7 @@ class MarineEnv(gym.Env):
         capture_distance = self.pursuers[0].distance_capture  # Capture distance
         safe_distance = 0.5 * capture_distance  # Safety distance
 
+        self.determine_if_captured()
         # Update time penalty and distance rewards
         for i, dis in enumerate(all_pursuers_dis_before):
             if dis is None:
@@ -705,19 +746,25 @@ class MarineEnv(gym.Env):
             min_dis_after = min(all_pursuers_dis_after[i])
 
             dis_to_pursuer = all_pursuers_distance_to_other_pursuers[i]
-            dis_to_obstacle = all_purers_distance_to_obstacles[i]
+            dis_to_obstacle = all_purers_distance_to_obstacles[i]                
 
             # Apply time penalty
             rewards[i] += self.timestep_penalty
 
             # Apply emergency penalty for unsafe distances
-            if min_dis_after < safe_distance or dis_to_pursuer < safe_distance or dis_to_obstacle < safe_distance:
-                rewards[i] += self.emergency_penalty
+            for dis in [dis_to_pursuer]:
+                if dis < safe_distance:
+                    rewards[i] += self.emergency_penalty
+            for dis in [dis_to_obstacle]:
+                if dis < safe_distance:
+                    rewards[i] += self.emergency_penalty
+            # if min_dis_after < safe_distance or dis_to_pursuer < safe_distance or dis_to_obstacle < safe_distance:
+            #     rewards[i] += self.emergency_penalty
 
             for dis_to_evader in all_pursuers_dis_after[i]:
                 # Fixed reward within capture distance
                 if dis_to_evader <= capture_distance:
-                    rewards[i] += self.distance_reward
+                    rewards[i] += (self.distance_reward+5)*1/(capture_distance-dis_to_evader)
                 # Exponential decay reward beyond capture distance
                 else:
                     distance_over_saturation = min_dis_after - capture_distance
@@ -726,6 +773,7 @@ class MarineEnv(gym.Env):
 
         global_reward = self.global_reward()
         rewards += global_reward
+        aft_global_feature = self.global_observation()
 
         # Get pursuer observations
         observations, collisions = self.get_pursuers_observations()
@@ -734,6 +782,7 @@ class MarineEnv(gym.Env):
 
         dones = [False] * len(self.pursuers)
         infos = [{"state": "normal"}] * len(self.pursuers)
+        Done = False
 
         # Determine termination conditions
         for idx, pursuer in enumerate(self.pursuers):
@@ -743,6 +792,7 @@ class MarineEnv(gym.Env):
                     infos[idx] = {"state": "deactivated after collision"}
                 elif self.check_all_evader_is_captured():
                     infos[idx] = {"state": "deactivated after all evaders were captured"}
+                    Done = True
                 else:
                     logger.info(f"Process {os.getpid()}" + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
                     logger.error(f"wrong deactivated🥲.")
@@ -766,11 +816,13 @@ class MarineEnv(gym.Env):
             else:
                 dones[idx] = False
                 infos[idx] = {"state": "normal"}
+        
 
         self.episode_time_steps += 1
         self.total_time_steps += 1
+        
 
-        return observations, rewards, dones, infos
+        return observations, rewards, dones, infos,Done, bef_global_obs,aft_global_feature
 
     def get_evenly_distributed_reward(self, angles: List[float]) -> float:
         """
@@ -856,10 +908,22 @@ class MarineEnv(gym.Env):
                                                                self.pursuers,
                                                                self.evaders,
                                                                self.observation_in_robot_frame)
+            
             observations.append(observation)
             collisions.append(collision)
 
         return observations, collisions
+    
+    def global_observation(self):
+        global_observation = []
+        for i in range(self.num_pursuers):
+            global_observation.extend((self.pursuers[i].x,self.pursuers[i].y,self.pursuers[i].speed,self.pursuers[i].theta,self.pursuers[i].is_pursuing))
+        for i in range(self.num_evaders):
+            global_observation.extend((self.evaders[i].x,self.evaders[i].y,self.evaders[i].speed,self.evaders[i].theta))
+        for i in range(self.num_obs):
+            global_observation.extend((self.obstacles[i].x,self.obstacles[i].y,self.obstacles[i].r))
+        return global_observation
+
 
     def get_evaders_observation(self) -> Tuple[List[Any], List[bool]]:
         """

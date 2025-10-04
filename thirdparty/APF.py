@@ -174,11 +174,11 @@ class ApfAgent:
         Returns:
             int: Selected action index, representing the (acceleration, angular_velocity) combination.
         """
-        assert len(observation) == 59, "The state size does not equal 59"
+        assert len(observation) == 46, "The state size does not equal 46"
 
         obs_array = np.array(observation)
         static_start_idx = 4
-        dynamic_start_idx = 19
+        dynamic_start_idx = 10
 
         # Extract observation data
         ego = obs_array[:static_start_idx]

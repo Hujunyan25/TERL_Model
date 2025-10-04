@@ -35,6 +35,8 @@ class Evader(Robot):
         # Precomputed values
         self.compute_k()  # Calculate and update water resistance coefficient
         self.compute_actions()  # Calculate and update action list
+        self.env_width = self.eva_config.get("env.width", default=100.0)
+        self.env_height = self.eva_config.get("env.height", default=100.0)
 
     def perception_output(self, obstacles, pursuers, evaders, in_robot_frame=True):
         """

@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 @dataclass
@@ -22,11 +23,33 @@ class TERLConfig:
     num_quantiles: int = 32
     num_cosine_features: int = 64
     device: str = 'cpu'
-    seed: int = 0
+    seed: int = 1
     learning_rate: float = 1e-4
     gradient_clip: float = 1.0
 
+@dataclass
+class MADDPGConfig(TERLConfig):
+    """Configuration class for MADDPG policy network"""
+    num_agents: int = 4
+    critic_hidden_dim: int = 256
+    actor_lr : float = 0.01
+    critic_lr : float = 0.01
+    tau : float = 0.005
+    gamma: float = 0.99
 
+
+class BaseEncoder(nn.Module):
+    def __init__(self, input_dim:int, output_dim:int):
+        super().__init__()
+        self.layer = nn.Sequential(
+            nn.Linear(input_dim, output_dim),
+            nn.LayerNorm(output_dim),
+            nn.ReLU()
+        )
+    def forward(self, x: torch.Tensor):
+        x = x.unsqueeze(1)
+        return self.layer(x)
+    
 def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
     """Create encoder model"""
     return nn.Sequential(
@@ -35,6 +58,55 @@ def encoder(input_dimension: int, output_dimension: int) -> nn.Sequential:
         nn.ReLU()
     )
 
+class LSTMEncoder(nn.Module):
+    def __init__(self,input_dim:int,hidden_dim:int):
+        super().__init__()
+        self.lstm = nn.LSTM(input_dim,hidden_dim,batch_first=True)
+        self.layer_norm = nn.LayerNorm(hidden_dim)
+        self.relu = nn.ReLU()
+        self.linear = nn.Linear(input_dim, hidden_dim)
+
+    def forward(self,x:torch.Tensor,seq_lens):
+        if torch.any(seq_lens == 0).item():
+            output = self.linear(x)
+            output = self.layer_norm(output)
+            output = self.relu(output)
+        else:
+            batch_size, total_seq_len, _ = x.shape
+            sorted_seq_len, sorted_idx = torch.sort(seq_lens, descending=True)
+            x_sorted = x[sorted_idx]
+            packed_x = pack_padded_sequence(x_sorted, sorted_seq_len, batch_first=True,enforce_sorted=True)
+            packed_out,_ = self.lstm(packed_x)
+            output,_ = pad_packed_sequence(packed_out,batch_first=True,total_length=total_seq_len)
+            output = self.layer_norm(output)
+            output = self.relu(output)
+
+        return output
+    
+
+class EntityModel(nn.Module):
+    def __init__(self,feature_dims:int,hidden_dim:int):
+        super().__init__()
+        self.feature_dims = feature_dims
+        self.hidden_dim = hidden_dim
+
+        self.entity_encoders = nn.ModuleDict()
+        for name, dim in feature_dims.items():
+            if name == 'self':
+                self.entity_encoders['self'] = BaseEncoder(self.feature_dims['self'], self.hidden_dim)
+            else:
+                self.entity_encoders[name] = LSTMEncoder(dim, hidden_dim)
+
+    def forward(self, inputs, seq_lens):
+        outputs = []
+        for name,x in inputs.items():
+            if name == 'self':
+                outputs.append(self.entity_encoders['self'](x))
+            elif name == 'pursuers' or name == 'evaders' or name == 'obstacles':
+                outputs.append(self.entity_encoders[name](x, seq_lens[name]))
+            else:
+                continue
+        return torch.cat(outputs, dim=1)
 
 class TargetSelectionModule(nn.Module):
     """Attention module specifically for target selection of evaders"""
@@ -116,6 +188,159 @@ class TargetSelectionModule(nn.Module):
         return enhanced_feature, attention_weights.squeeze(1)
 
 
+class CenteralizedFeatureExtraction(nn.Module):
+    def __init__(self, config: Optional[TERLConfig] = None, **kwargs):
+        super().__init__()
+        if config is None:
+            config = TERLConfig()
+        for key,value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+        self.config = config
+        self.hidden_dim = config.hidden_dim
+        self.feature_dims = {
+            'self': 4,  # [vx, vy, min_obs_dis, pursuing_signal]
+            'pursuers': 7,  # [px, py, vx, vy, dist, angle, pursuing_signal]
+            'evaders': 7,  # [px, py, vx, vy, dist, pos_angle, head_angle]
+            'obstacles': 5  # [px, py, radius, dist, angle]
+        }
+        self.lstm_encoder = EntityModel(self.feature_dims, self.hidden_dim)
+        self.type_embedding = nn.Embedding(4, self.hidden_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=self.hidden_dim,
+            nhead=config.num_heads,
+            dim_feedforward=self.hidden_dim * 4,
+            dropout = 0.1,
+            batch_first=True,
+            norm_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=config.num_layers,enable_nested_tensor=False)
+        #复用目标选择模块
+        self.target_selection = TargetSelectionModule(self.hidden_dim)
+
+    def forward(self,global_obs:Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
+        B = global_obs['self'].shape[0]
+        #计算各实体的序列长度
+        count_dict = {}
+        for entity_type in ['pursuers', 'evaders', 'obstacles']:
+            feat = global_obs[entity_type]
+            _,num_entities,_ = feat.shape
+            is_zero = torch.all(feat==0,dim=-1)
+            count_dict[entity_type] = num_entities - is_zero.sum(dim=1)
+
+        entity_embeded = self.lstm_encoder(global_obs,count_dict)
+
+        #3.加入实体类型嵌入
+        type_embed = self.type_embedding(global_obs['types'].long())
+        tokens = entity_embeded + type_embed
+
+        #transformer编码全局关系
+        attention_mask = ~global_obs['masks'].bool()
+        transformed = self.transformer(tokens, src_key_padding_mask=attention_mask)
+
+        self_feature = transformed[:,0]
+        global_feature = torch.max(transformed,dim=1).values
+        enhanced_feature = torch.cat([self_feature,global_feature],dim=-1)
+
+        evader_indices = (global_obs['types'] == 2)
+        evader_mask = global_obs['masks'].masked_select(evader_indices).reshape(B,-1)
+        evader_feats = transformed.masked_select(evader_indices.unsqueeze(-1).expand(-1,-1,transformed.size(-1))).reshape(B,-1,self.hidden_dim)
+        global_features,target_weights = self.target_selection(enhanced_feature,evader_feats,evader_mask)
+        return global_features,target_weights
+    
+class MADDPGTERLActor(nn.Module):
+    def __init__(self, config:Optional[MADDPGConfig], ip:int,**kwargs):
+        super().__init__()
+        if config is None:
+            config = MADDPGConfig()
+        for key,value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+        self.config = config
+        self.ip = ip
+        self.encoder = CenteralizedFeatureExtraction(self.config)
+        self.actor = nn.Sequential(
+                nn.Linear(config.hidden_dim,config.hidden_dim),
+                nn.ReLU(),
+                nn.LayerNorm(config.hidden_dim),
+                nn.Linear(config.hidden_dim,config.action_size),
+                nn.Softmax(dim=-1)
+            )
+    
+    def _validate_input(self, obs: Dict[str, torch.Tensor]) -> None:
+        """Validate the format and dimensions of input data"""
+        if not isinstance(obs, dict):
+            raise ValueError("obs must be a dictionary")
+        
+        for key_, value in obs.items():
+            required_keys = {'self', 'types', 'masks'}
+            if not all(key in obs for key in required_keys):
+                raise ValueError(f"obs must contain keys: {required_keys}")
+
+            if obs['self'].dim() != 2:
+                raise ValueError("self features must be 2-dimensional [batch_size, feature_dim]")
+
+    def forward(self,obs:Dict[str, torch.Tensor]) -> torch.Tensor:
+        self._validate_input(obs)
+        features,target_weights = self.encoder(obs)
+        agent_action = self.actor(features)
+        return agent_action
+
+    
+class MADDPGTERLCritic(nn.Module):
+    def __init__(self,config:MADDPGConfig, ip:int, **kwargs):
+        super().__init__()
+        if config is None:
+            config = MADDPGConfig()
+        for query,value in kwargs.items():
+            if hasattr(config, query):
+                setattr(config, query, value)
+        self.config = config
+        self.ip = ip
+
+        input_dim = 30 + config.num_agents * 1
+
+        self.q_network = nn.Sequential(
+            nn.Linear(input_dim, config.critic_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(config.critic_hidden_dim, config.critic_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(config.critic_hidden_dim, 1)
+        )
+    
+    def forward(self, obs: torch.Tensor, all_actions: torch.Tensor) -> torch.Tensor:
+        input_feat = torch.cat([obs, all_actions], dim=-1)
+        return self.q_network(input_feat)
+
+# class MADDPGTERLPolicy(nn.Module):
+#     def __init__(self, config: MADDPGConfig, **kwargs):
+#         super().__init__()
+#         if config is None:
+#             config = MADDPGConfig()
+#         for key,value in kwargs.items():
+#             if hasattr(config, key):
+#                 setattr(config, key, value)
+#         self.config = config
+#         self.device = config.device
+#         self.actor = MADDPGTERLActor(config).to(self.device) 
+#         self.actor_target = MADDPGTERLActor(config).to(self.device)
+#         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.config.LR)
+    
+#     def forward(self, obs: Dict[str, Dict[str,torch.Tensor]]):
+#         actions = []
+#         for agent_id, agent_obs in obs.items():
+#             agent_obs = self.convert_to_tensor(agent_obs, self.device)
+#             global_features,target_weights = self.encoder(agent_obs) #这里的target_weights是智能体对逃避者的权重
+#             agent_action = self.actor(global_features)
+#             actions.append(agent_action)
+#         return actions
+
+
+    
+
+    
+        
+
 class TERLPolicy(nn.Module):
     """
     TERL policy network implementation
@@ -165,6 +390,7 @@ class TERLPolicy(nn.Module):
             for name, dim in self.feature_dims.items()
         })
 
+        self.lstmencoder = EntityModel(self.feature_dims, self.hidden_dim)
         # Type embedding
         self.type_embedding = nn.Embedding(4, self.hidden_dim)
 
@@ -254,19 +480,31 @@ class TERLPolicy(nn.Module):
             torch.Tensor: Encoded features [batch_size, hidden_dim]
         """
         B = obs['self'].shape[0]
-        encoded_features = []
+        # encoded_features = []
 
-        # Encode various entities
-        for entity_type, encoder in self.entity_encoders.items():
-            features = obs[entity_type]
+        count_dict = {}
+        for entity_type in self.feature_dims.keys():
             if entity_type == 'self':
-                encoded = encoder(features).unsqueeze(1)
-            else:
-                encoded = encoder(features)
-            encoded_features.append(encoded)
+                continue
+            feat_tensors = obs[entity_type]
+            _, num_entities, _ = feat_tensors.shape
+            is_full_zero = torch.all(torch.eq(feat_tensors,0),dim=-1)
+            fill_counts = torch.sum(is_full_zero,dim=1)
+            real_counts = num_entities - fill_counts
+            count_dict[entity_type] = real_counts
+        
+        entity_embed = self.lstmencoder.forward(obs,count_dict)
+        # Encode various entities
+        # for entity_type, encoder in self.entity_encoders.items():
+        #     features = obs[entity_type]
+        #     if entity_type == 'self':
+        #         encoded = encoder(features).unsqueeze(1)
+        #     else:
+        #         encoded = encoder(features)
+        #     encoded_features.append(encoded)
 
         # Concatenate all encoded features
-        entity_embed = torch.cat(encoded_features, dim=1)
+        # entity_embed = torch.cat(encoded_features, dim=1)
 
         # Add type embedding
         type_embed = self.type_embedding(obs['types'].long())
