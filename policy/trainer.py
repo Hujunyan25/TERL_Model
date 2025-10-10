@@ -17,6 +17,7 @@ from thirdparty.APF import ApfAgent
 from utils import logger as logger
 from config_manager import ConfigManager
 from policy.replay_buffer import ReplayBuffer
+import random
 
 class Trainer:
     """
@@ -224,7 +225,12 @@ class Trainer:
                 #     actions.append(action)
                 #     action_probs.append(action_prob)
                 # elif self.pursuer_agent.use_maddpg:
-                action = self.pursuer_agents[i].act_maddpg(states[i],eps)
+                action_prob = self.pursuer_agents[i].act_maddpg(states[i])
+                action_probs.append(action_prob)
+                if random.random() > eps:
+                    action = np.argmax(action_prob.cpu().data.numpy())
+                else:
+                    action = random.choice(np.arange(9))
                 actions.append(action)
 
             evader_actions = []
@@ -271,6 +277,7 @@ class Trainer:
                     # Learn every UPDATE_EVERY steps
                     if self.current_timestep % self.UPDATE_EVERY == 0 and self.memory.size > 128:
                         agent.train(self.memory, self.pursuer_agents, i)
+                        # self.pursuer_agents[0].train(self.memory, self.pursuer_agents, 0)
 
                     # Update target model every target_update_interval steps
                     if self.current_timestep % self.target_update_interval == 0:

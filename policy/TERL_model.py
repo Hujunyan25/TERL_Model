@@ -115,14 +115,14 @@ class TargetSelectionModule(nn.Module):
         super().__init__()
         self.hidden_dim = hidden_dim
 
-        self.self_transform = nn.Linear(2 * hidden_dim, hidden_dim)
+        self.self_transform = nn.Sequential(nn.Linear(2 * hidden_dim, hidden_dim),nn.ReLU())
 
         # Linear layer for transforming query
-        self.query_transform = nn.Linear(hidden_dim, hidden_dim)
+        self.query_transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),nn.ReLU())
 
         # Linear layers for transforming key and value
-        self.key_transform = nn.Linear(hidden_dim, hidden_dim)
-        self.value_transform = nn.Linear(hidden_dim, hidden_dim)
+        self.key_transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),nn.ReLU())
+        self.value_transform = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),nn.ReLU())
 
         # Layer Norm for feature fusion
         self.layer_norm = nn.LayerNorm(hidden_dim)
@@ -266,7 +266,35 @@ class MADDPGTERLActor(nn.Module):
                 nn.Linear(config.hidden_dim,config.action_size),
                 nn.Softmax(dim=-1)
             )
-    
+        self._init_weights()
+        self.to(self.config.device)
+
+        
+    def _init_weights(self):
+        """Initialize network weights"""
+        for name, param in self.named_parameters():
+            if 'weight' in name:
+                if 'embedding' in name:
+                    # Embedding layer initialized with standard normal distribution
+                    nn.init.normal_(param.data, mean=0.0, std=0.02)
+                elif 'layer_norm' in name:
+                    # LayerNorm layer weights initialized to 1
+                    nn.init.constant_(param.data, 1.0)
+                elif 'output_layer' in name:
+                    # Output layer uses a smaller initialization range to avoid overly large initial values
+                    nn.init.uniform_(param.data, -0.003, 0.003)
+                elif param.dim() > 1:
+                    # For 2D and higher weights, use orthogonal initialization with gain=1/sqrt(2) for better initial scaling
+                    nn.init.orthogonal_(param.data, gain=1 / math.sqrt(2))
+                else:
+                    # 1D weights use uniform distribution
+                    bound = 1 / math.sqrt(param.size(0))
+                    nn.init.uniform_(param.data, -bound, bound)
+            elif 'bias' in name:
+                # Bias terms initialized to 0
+                nn.init.constant_(param.data, 0)
+
+
     def _validate_input(self, obs: Dict[str, torch.Tensor]) -> None:
         """Validate the format and dimensions of input data"""
         if not isinstance(obs, dict):
@@ -298,7 +326,7 @@ class MADDPGTERLCritic(nn.Module):
         self.config = config
         self.ip = ip
 
-        input_dim = 30 + config.num_agents * 1
+        input_dim = 30 + config.num_agents * config.action_size
 
         self.q_network = nn.Sequential(
             nn.Linear(input_dim, config.critic_hidden_dim),

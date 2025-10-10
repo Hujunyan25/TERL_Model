@@ -164,7 +164,7 @@ def run_trial(device, config_file):
         # assert (model_name == "DQN") ^ params["use_iqn"], "Model name and use_iqn should match"
         pursuer_agents = []
         for i in range(params["training_schedule"]["num_pursuers"][0]):
-            pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],use_maddpg=params["use_maddpg"],seed=params["seed"] + 100+i,
+            pursuer_agent = Agent(device=device, use_iqn=params["use_iqn"], use_dqn=params["use_dqn"],use_ppo=params["use_ppo"],use_maddpg=params["use_maddpg"],seed=params["seed"] + 100+i,ip=i,
                                   model_name=args.model_name[args.model_index])
             pursuer_agents.append(pursuer_agent)
             if "load_model" in params:

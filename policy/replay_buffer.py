@@ -23,7 +23,7 @@ class ReplayBuffer:
         self.evader_dim = 7
         self.obstacle_dim = 5
         self.global_dim = 30
-        self.global_dim = 30
+        self.action_size = 9
 
         # Initialize storage space
         self.self_state = torch.zeros((buffer_size, self.self_dim), device=device)
@@ -50,7 +50,7 @@ class ReplayBuffer:
         # self.next_types = torch.zeros((buffer_size, 1 + max_pursuers + max_evaders + max_obstacles), dtype=torch.long,
         #                               device=device)
 
-        self.actions = torch.zeros(buffer_size, device=device)
+        self.actions = torch.zeros((buffer_size, self.action_size), device=device)
         self.rewards = torch.zeros(buffer_size, device=device)
         self.dones = torch.zeros(buffer_size, device=device)
 

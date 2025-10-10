@@ -292,7 +292,7 @@ class Agent:
             # Other types remain unchanged
             return data
 
-    def act_maddpg(self, state,eps=0.0, use_eval=True):
+    def act_maddpg(self, state, use_eval=True):
         state = self.convert_to_tensor(state, self.device)
         if use_eval:
             self.policy_local.eval()
@@ -300,10 +300,6 @@ class Agent:
             self.policy_local.train()
         with torch.no_grad():
             action = self.policy_local(state)
-        if random.random() > eps:
-            action = np.argmax(action.cpu().data.numpy())
-        else:
-            action = random.choice(np.arange(self.action_size))
         return action
     
     def act(self, state, eps=0.0, cvar=1.0, use_eval=True):
@@ -413,19 +409,20 @@ class Agent:
 
     def train_MADDPG(self,memory,agents,i):
         batch = memory.sample()
-        actions = batch['actions'].reshape(-1,len(agents))
-        # actions = actions.reshape(-1,len(agents))
-        rewards = batch['rewards'].reshape(-1,len(agents))
-        rewards = rewards.mean(dim=1,keepdim=True)
-        dones = batch['dones'].reshape(-1,1)
-        states = batch['observations']
         bef_global_obs = batch['bef_global']
         total_length = bef_global_obs.shape[0]
         indices = torch.arange(0, total_length, step=len(agents), device=self.device)
         bef_global_obs = bef_global_obs[indices]
+        dones = batch['dones'].reshape(-1,1)
         dones = dones[indices]
         aft_global_obs = batch['aft_global']
         aft_global_obs = aft_global_obs[indices]
+        actions = batch['actions'].reshape(bef_global_obs.shape[0],-1)
+        # actions = actions.reshape(-1,len(agents))
+        rewards = batch['rewards'].reshape(-1,len(agents))
+        rewards = rewards.mean(dim=1,keepdim=True)
+        states = batch['observations']
+
 
         batch_obs_list = []
         for batch_idx in range(states['self'].shape[0]):
@@ -433,34 +430,94 @@ class Agent:
             batch_obs_list.append(agent_obs)
         #更新critic网络
         with torch.no_grad():
-            batch_a_next_n = [agents[i%(len(agents))].policy_target(state) for i,state in enumerate(batch_obs_list)]
-            processed_tensors = [tensor.squeeze(dim=0) for tensor in batch_a_next_n]
-            batch_a_next_n = torch.stack(processed_tensors, dim=0) 
-            dist = torch.distributions.Categorical(probs=batch_a_next_n)
-            batch_a_next_n = dist.sample()
-            log_prob = dist.log_prob(batch_a_next_n)
+            batch_a_next_n = torch.stack([agents[j%(len(agents))].policy_target(state) for j,state in enumerate(batch_obs_list)],dim=0)
+            # processed_tensors = [tensor.squeeze(dim=0) for tensor in batch_a_next_n]
+            # batch_a_next_n = torch.stack(processed_tensors, dim=0) 
+            # dist = torch.distributions.Categorical(probs=batch_a_next_n)
+            # batch_a_next_n = dist.sample()
+            # log_prob = dist.log_prob(batch_a_next_n)
             batch_a_next_n = batch_a_next_n.reshape(aft_global_obs.shape[0],-1)
             Q_next = agents[i].critic_target(aft_global_obs, batch_a_next_n)
-            expected_next_Q = (Q_next*log_prob).sum(dim=1,keepdim=True)
-            target_Q = rewards+agents[i].GAMMA*(1-dones)*expected_next_Q
+            # expected_next_Q = (Q_next*batch_a_next_n).sum(dim=1,keepdim=True)
+            target_Q = rewards+agents[i].GAMMA*(1-dones)*Q_next
 
         current_Q = agents[i].critic_local(bef_global_obs, actions)
         loss = F.mse_loss(current_Q, target_Q)
         agents[i].critic_optimizer.zero_grad()
         loss.backward()
         agents[i].critic_optimizer.step()
+        for name, param in agents[i].critic_local.named_parameters():
+            if param.grad is not None:
+                print(f"{name}: grad mean = {param.grad.mean().item():.6f}, "
+                    f"grad std = {param.grad.std().item():.6f}")
+            else:
+                print(f"{name}: grad is None!")
         #更新actor网络
-        actions = agents[i].policy_local(states)
-        dist_action = torch.distributions.Categorical(actions)
-        actions = dist_action.sample()
-        actions = actions.reshape(aft_global_obs.shape[0],-1)
-        actor_loss = -agents[i].critic_local(bef_global_obs, actions).mean()
+        actions_ = agents[i].policy_local(states)
+        actions_ = actions_.reshape(bef_global_obs.shape[0],-1)
+        actor_loss = -agents[i].critic_local(bef_global_obs, actions_).mean() 
         agents[i].policy_optimizer.zero_grad()
         actor_loss.backward()
         agents[i].policy_optimizer.step()
+        for name, param in agents[i].policy_local.named_parameters():
+            if param.grad is not None:
+                print(f"{name}: grad mean = {param.grad.mean().item():.6f}, "
+                    f"grad std = {param.grad.std().item():.6f}")
+            else:
+                print(f"{name}: grad is None!")
+        return actor_loss.item(),loss.item()
 
 
 
+    # def train_MAPPO(self,agents,i):
+    #     batch = self.memory.sample()
+    #     actions = batch['actions'].reshape(-1,len(agents))
+    #     # actions = actions.reshape(-1,len(agents))
+    #     rewards = batch['rewards'].reshape(-1,len(agents))
+    #     rewards = rewards.mean(dim=1,keepdim=True)
+    #     dones = batch['dones'].reshape(-1,1)
+    #     states = batch['observations']
+    #     bef_global_obs = batch['bef_global']
+    #     total_length = bef_global_obs.shape[0]
+    #     indices = torch.arange(0, total_length, step=len(agents), device=self.device)
+    #     bef_global_obs = bef_global_obs[indices]
+    #     dones = dones[indices]
+    #     aft_global_obs = batch['aft_global']
+    #     aft_global_obs = aft_global_obs[indices]
+
+    #     batch_obs_list = []
+    #     for batch_idx in range(states['self'].shape[0]):
+    #         agent_obs={key: value[batch_idx].unsqueeze(0) for key, value in states.items()}
+    #         batch_obs_list.append(agent_obs)
+        
+    #     #更新critic网络
+    #     for _ in range(self.k_epoch):
+    #         with torch.no_grad():
+    #             batch_a_next_n = [agents[i%(len(agents))].policy_local(state) for i,state in enumerate(batch_obs_list)]
+    #             values = agents[i].critic_local(bef_global_obs)
+    #             values_next = agents[i].critic_local(aft_global_obs)
+    #             deltas = rewards + agents[i].GAMMA*values_next*(1-dones)-values
+    #             advantages = torch.zeros_like(deltas).to(self.device)
+    #             running_advantages = 0.0
+    #             for t in reversed(range(len(deltas))):
+    #                 running_advantages = deltas[t]+agents[i].GAMMA*running_advantages*(1-dones[t])
+    #                 advantages[t] = running_advantages
+    #             advantages = (advantages-advantages.mean())/(advantages.std()+1e-8)
+    #             target_value = advantages+values
+    #             dist = Categorical(batch_a_next_n)
+    #             new_log_probs = dist.log_prob(actions)
+    #             entropy = dist.entropy()
+
+    #             ratios = torch.exp(new_log_probs-log_probs)
+
+    #             surr1 = ratios*advantages
+    #             surr2 = torch.clamp(ratios, 1-self.config.clip_param, 1+self.config.clip_param)*advantages
+    #             loss_actor = -torch.min(surr1, surr2).mean()
+    #             loss_critic = mse_loss(values.squeeze(), target_value)
+    #             loss = loss_actor + 0.5*loss_critic-0.01*entropy.mean()
+    #             loss.backward()
+    #             self.optimizer.step()
+    #     self.policy_local.load_state_dict(self.policy_target.state_dict())
 
 
     def train_IQN(self):
@@ -648,3 +705,17 @@ def calculate_huber_loss(td_errors: torch.Tensor, k: float = 1.0):
     loss = torch.where(td_errors.abs() <= k, 0.5 * td_errors.pow(2), k * (td_errors.abs() - 0.5 * k))
     assert loss.shape == (td_errors.shape[0], 8, 8), "huber loss has wrong shape"
     return loss
+
+
+def gumbel_softmax(logits, tau=1.0, hard=False, eps=1e-20):
+    gumbels = -torch.empty_like(logits).exponential_().log()#1.生成噪声
+    gumbels = (logits + gumbels) / tau #2.加噪声并且除以温度
+    y_soft = gumbels.softmax(dim=-1)#3.softmax得到软概率分布
+    if hard:
+        # Straight-through trick
+        index = y_soft.max(dim=-1, keepdim=True)[1]
+        y_hard = torch.zeros_like(logits).scatter_(-1, index, 1.0)
+        ret = y_hard - y_soft.detach() + y_soft
+    else:
+        ret = y_soft
+    return ret

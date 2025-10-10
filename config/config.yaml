@@ -2,7 +2,7 @@
 # Some parameters are for recording purposes only and will not be used during training.
 
 # Set random seed to ensure experiment reproducibility
-seed: 88
+seed: 99
 
 # Total number of training timesteps
 total_timesteps: 1000000
