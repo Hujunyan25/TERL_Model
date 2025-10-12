@@ -87,7 +87,7 @@ class Trainer:
         self.pursuer_agent = pursuer_agent
         self.evader_agent = evader_agent
         self.eval_config = []
-        self.create_eval_configs(eval_schedule)
+        # self.create_eval_configs(eval_schedule)
 
         self.trainer_config = ConfigManager().get_instance()
         self.UPDATE_EVERY = self.trainer_config.get("training.update_every", update_every)

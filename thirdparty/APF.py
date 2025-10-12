@@ -60,11 +60,11 @@ class ApfAgent:
         # Environment configuration
         self.apf_config = ConfigManager.get_instance()
         self.x_min = 0.0
-        # self.x_max = self.apf_config.get("env.width", default=100)
-        self.x_max = 100
+        self.x_max = self.apf_config.get("env.width", default=100)
+        # self.x_max = 100
         self.y_min = 0.0
-        # self.y_max = self.apf_config.get("env.height", default=100)
-        self.y_max = 100
+        self.y_max = self.apf_config.get("env.height", default=100)
+        # self.y_max = 100
 
     def position_force(self, position, radius):
         """
@@ -148,16 +148,16 @@ class ApfAgent:
 
         # X-direction boundary force
         x_min_dist = x - self.x_min
-        x_max_dist = self.x_max - x
+        x_max_dist = (self.x_max-20) - x
         force[0] = calculate_force(x_min_dist, True) + calculate_force(x_max_dist, False)
 
         # Y-direction boundary force
         y_min_dist = y - self.y_min
-        y_max_dist = self.y_max - y
+        y_max_dist = (self.y_max - 20) - y
         force[1] = calculate_force(y_min_dist, True) + calculate_force(y_max_dist, False)
 
         # Consider environmental scale
-        env_scale = np.sqrt(self.x_max * self.y_max) / 100.0
+        env_scale = np.sqrt((self.x_max-20) * (self.y_max - 20)) / 100.0
         return force * self.boundary_k * env_scale
 
     def act(self, observation):

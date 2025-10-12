@@ -616,7 +616,7 @@ class MarineEnv(gym.Env):
         # Boundary penalty check
         for i, pursuer in enumerate(self.pursuers):
             if pursuer.x < 0 or pursuer.x > self.arena_size or pursuer.y < 0 or pursuer.y > self.arena_size:
-                rewards[i] -= self.boundary_penalty
+                rewards[i] += self.boundary_penalty
 
         return rewards
 
@@ -732,6 +732,7 @@ class MarineEnv(gym.Env):
 
             # Calculate post-update distance
             min_dis_after = min(all_pursuers_dis_after[i])
+            min_dis_before = min(dis)
 
             dis_to_pursuer = all_pursuers_distance_to_other_pursuers[i]
             dis_to_obstacle = all_purers_distance_to_obstacles[i]
@@ -742,6 +743,8 @@ class MarineEnv(gym.Env):
             # Apply emergency penalty for unsafe distances
             if min_dis_after < safe_distance or dis_to_pursuer < safe_distance or dis_to_obstacle < safe_distance:
                 rewards[i] += self.emergency_penalty
+            
+            rewards[i] += 10 * (min_dis_before - min_dis_after)
 
             for dis_to_evader in all_pursuers_dis_after[i]:
                 # Fixed reward within capture distance
@@ -765,7 +768,10 @@ class MarineEnv(gym.Env):
         infos = [{"state": "normal"}] * len(self.pursuers)
 
         # Determine termination conditions
+        for idx, evader in enumerate(self.evaders):
+            print(f"Evader: {idx}, position: ({evader.x},{evader.y})")
         for idx, pursuer in enumerate(self.pursuers):
+            print(f"Pursuer: {idx}, position:({pursuer.x},{pursuer.y})")
             if pursuer.deactivated:
                 dones[idx] = True
                 if pursuer.collision:

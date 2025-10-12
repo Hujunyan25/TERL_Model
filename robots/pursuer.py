@@ -53,8 +53,8 @@ class Pursuer(Robot):
         self.is_current_target_captured = False  # Whether the current target has been captured
         self.is_pursuing = False  # Whether the pursuer is actively pursuing
 
-        # self.distance_capture = self.pur_config.get("env.capture_distance", default=8.0)  # Capture range threshold
-        self.distance_capture = 8.0
+        self.distance_capture = self.pur_config.get("env.capture_distance", default=8.0)  # Capture range threshold
+        # self.distance_capture = 8.0
         self.angle_capture = np.pi  # Minimum encirclement angle required for capture
 
         # Precomputed values
