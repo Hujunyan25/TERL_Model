@@ -768,10 +768,7 @@ class MarineEnv(gym.Env):
         infos = [{"state": "normal"}] * len(self.pursuers)
 
         # Determine termination conditions
-        for idx, evader in enumerate(self.evaders):
-            print(f"Evader: {idx}, position: ({evader.x},{evader.y})")
         for idx, pursuer in enumerate(self.pursuers):
-            print(f"Pursuer: {idx}, position:({pursuer.x},{pursuer.y})")
             if pursuer.deactivated:
                 dones[idx] = True
                 if pursuer.collision:

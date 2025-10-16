@@ -337,9 +337,9 @@ class Trainer:
                 f"pursuer_{i}/state": infos[i]["state"],
                 f"pursuer_{i}/reward": reward,
                 f"pursuer_{i}/deactivated": pursuer.deactivated,
-                f"pursuer_{i}/collision": getattr(pursuer, 'collision', False),
-                f"pursuer_{i}/position_x": float(getattr(pursuer, 'x', 0.0)),
-                f"pursuer_{i}/position_y": float(getattr(pursuer, 'y', 0.0))
+                f"pursuer_{i}/collision": getattr(pursuer, 'collision', False)
+                # f"pursuer_{i}/position_x": float(getattr(pursuer, 'x', 0.0)),
+                # f"pursuer_{i}/position_y": float(getattr(pursuer, 'y', 0.0))
             })
 
         # Episode summary information

@@ -114,6 +114,21 @@ class TargetSelectionModule(nn.Module):
 
         return enhanced_feature, attention_weights.squeeze(1)
 
+# LSTM轨迹预测模块
+class TrajectoryPredictor(nn.Module):
+    def __init__(self, input_dim=4, hidden_dim=32, output_dim=4, pred_steps=3):
+        super().__init__()
+        self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, output_dim * pred_steps)  # 预测未来3步
+        self.pred_steps = pred_steps
+        self.output_dim = output_dim
+
+    def forward(self, history):
+        # history: [batch_size, seq_len, input_dim]（输入历史轨迹）
+        _, (hidden, _) = self.lstm(history)
+        pred = self.fc(hidden.squeeze(0))  # [batch_size, output_dim*pred_steps]
+        return pred.view(-1, self.pred_steps, self.output_dim)  # [batch_size, pred_steps, output_dim]
+    
 
 class TERLPolicy(nn.Module):
     """
@@ -192,6 +207,10 @@ class TERLPolicy(nn.Module):
         self.hidden_layer = nn.Linear(self.hidden_dim, self.hidden_dim)
         self.output_layer = nn.Linear(self.hidden_dim, config.action_size)
         self.layer_norm = nn.LayerNorm(self.hidden_dim)
+
+        self.mapping_layer = nn.Linear(self.hidden_dim * 2, self.hidden_dim)
+
+        self.LSTMlayer = TrajectoryPredictor(input_dim = 4, hidden_dim = 32, output_dim = 4, pred_steps = 3)
 
         # Initialize weights
         # self._init_weights()
@@ -281,32 +300,34 @@ class TERLPolicy(nn.Module):
 
         enhanced_feature = torch.cat([self_feature, global_feature], dim=-1)  # [B, 2H]
 
-        # Extract evader features and mask - uniformly handle batch and single samples
-        evader_indices = (obs['types'] == 2)  # [B, N]
+        enhanced_features = self.mapping_layer(enhanced_feature)
 
-        # Get the number of positions with type==2 per batch
-        num_evaders_per_batch = evader_indices.sum(dim=1)  # [B]
-        max_evaders = num_evaders_per_batch.max().item()
+        # # Extract evader features and mask - uniformly handle batch and single samples
+        # evader_indices = (obs['types'] == 2)  # [B, N]
 
-        # Use masked_select and reshape to handle irregular selections
-        flat_mask = obs['masks'].masked_select(evader_indices)
-        flat_features = transformed.masked_select(
-            evader_indices.unsqueeze(-1).expand(-1, -1, transformed.size(-1))
-        )
+        # # Get the number of positions with type==2 per batch
+        # num_evaders_per_batch = evader_indices.sum(dim=1)  # [B]
+        # max_evaders = num_evaders_per_batch.max().item()
 
-        # Reshape into regular shape
-        evader_mask = flat_mask.reshape(B, max_evaders)  # [B, max_evaders]
-        evader_features = flat_features.reshape(B, max_evaders, -1)  # [B, max_evaders, H]
+        # # Use masked_select and reshape to handle irregular selections
+        # flat_mask = obs['masks'].masked_select(evader_indices)
+        # flat_features = transformed.masked_select(
+        #     evader_indices.unsqueeze(-1).expand(-1, -1, transformed.size(-1))
+        # )
 
-        # Apply target selection module
-        enhanced_features, attention_weights = self.target_selection(
-            enhanced_feature,
-            evader_features,
-            evader_mask
-        )
+        # # Reshape into regular shape
+        # evader_mask = flat_mask.reshape(B, max_evaders)  # [B, max_evaders]
+        # evader_features = flat_features.reshape(B, max_evaders, -1)  # [B, max_evaders, H]
 
-        # Store attention weights for visualization
-        self._last_target_weights = attention_weights
+        # # Apply target selection module
+        # enhanced_features, attention_weights = self.target_selection(
+        #     enhanced_feature,
+        #     evader_features,
+        #     evader_mask
+        # )
+
+        # # Store attention weights for visualization
+        # self._last_target_weights = attention_weights
 
         return enhanced_features
 
