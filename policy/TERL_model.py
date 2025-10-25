@@ -127,7 +127,7 @@ class TrajectoryPredictor(nn.Module):
         # history: [batch_size, seq_len, input_dim]（输入历史轨迹）
         _, (hidden, _) = self.lstm(history)
         pred = self.fc(hidden.squeeze(0))  # [batch_size, output_dim*pred_steps]
-        return pred.view(-1, self.pred_steps, self.output_dim)  # [batch_size, pred_steps, output_dim]
+        return pred # [batch_size, pred_steps*output_dim]
     
 
 class TERLPolicy(nn.Module):
@@ -210,7 +210,9 @@ class TERLPolicy(nn.Module):
 
         self.mapping_layer = nn.Linear(self.hidden_dim * 2, self.hidden_dim)
 
-        self.LSTMlayer = TrajectoryPredictor(input_dim = 4, hidden_dim = 32, output_dim = 4, pred_steps = 3)
+        self.LSTMlayer = TrajectoryPredictor(input_dim = 5, hidden_dim = 32, output_dim = 4, pred_steps = 1)
+
+        self.layer_after_evader_added = nn.Linear(self.hidden_dim + 4, self.hidden_dim)
 
         # Initialize weights
         # self._init_weights()
@@ -353,6 +355,7 @@ class TERLPolicy(nn.Module):
         return cos, taus
 
     def forward(self,
+                evader_trajectory,
                 obs: Dict[str, torch.Tensor],
                 num_tau: int = 8,
                 cvar: float = 1.0) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -374,6 +377,12 @@ class TERLPolicy(nn.Module):
 
         # Transformer encoding of observations
         features = self.encode_entities(obs)
+
+        # add the trajectory of evader
+        evader_encodered = self.LSTMlayer(evader_trajectory)
+        features = torch.cat([features, evader_encodered], dim = 1)
+        features = self.layer_after_evader_added(features)
+
 
         # IQN processing
         cos, taus = self.calc_cos(batch_size, num_tau, cvar)

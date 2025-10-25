@@ -171,7 +171,7 @@ def process_evaluation(training_data_index, training_date, eval_id, evaluations,
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Dynamically generate the evaluation path
-    _dir = os.path.join(project_root, str(training_data_index), str(training_date), "seed_9")
+    _dir = os.path.join(project_root, str(training_data_index), str(training_date))
     os.makedirs(_dir, exist_ok=True)  # Ensure the directory exists
 
     logger.info(f"Plotting all evaluations in {_dir}")
@@ -248,9 +248,7 @@ def process_single_model(model_name):
         model_name (str): Name of the model to process.
     """
     training_data_set = [
-        "training_data0",
-        "training_data1",
-        "training_data2",
+        "training_data0"
     ]
     eval_configs = "eval_configs.json"
     evaluations = "evaluations.npz"
@@ -260,17 +258,24 @@ def process_single_model(model_name):
     ]
     eval_id = -1
 
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = [
-            executor.submit(process_evaluation, training_data_index, model_name, eval_id, evaluations, eval_configs,
-                            colors)
-            for training_data_index in training_data_set]
+    for training_data_index in training_data_set:
+        try:
+            process_evaluation(training_data_index, model_name, eval_id, evaluations, eval_configs, colors)
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()
-            except Exception as e:
-                print(f"An error occurred: {e}")
+    # with concurrent.futures.ProcessPoolExecutor() as executor:
+    #     futures = [
+    #         executor.submit(process_evaluation, training_data_index, model_name, eval_id, evaluations, eval_configs,
+    #                         colors)
+    #         for training_data_index in training_data_set]
+
+    #     for future in concurrent.futures.as_completed(futures):
+    #         try:
+    #             future.result()
+    #         except Exception as e:
+    #             print(f"An error occurred: {e}")
+
 
 
 def process_all_models(model_list):

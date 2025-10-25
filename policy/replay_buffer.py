@@ -49,8 +49,10 @@ class ReplayBuffer:
         self.actions = torch.zeros(buffer_size, device=device)
         self.rewards = torch.zeros(buffer_size, device=device)
         self.dones = torch.zeros(buffer_size, device=device)
+        self.evader_before_action = torch.zeros((buffer_size, 8,self.self_dim + 1), device = device)
+        self.evader_after_action = torch.zeros((buffer_size, 8, self.self_dim + 1), device = device)
 
-    def add(self, obs, action, reward, next_obs, done):
+    def add(self, obs, action, reward, next_obs, done, evader_before, evader_after):
         """Add data to the buffer"""
         idx = self.ptr
 
@@ -74,6 +76,10 @@ class ReplayBuffer:
         self.actions[idx] = action
         self.rewards[idx] = reward
         self.dones[idx] = done
+
+        # Add the trajectory of evader
+        self.evader_before_action[idx] = evader_before
+        self.evader_after_action[idx] = evader_after 
 
         # Update pointer and buffer size
         self.ptr = (self.ptr + 1) % self.buffer_size
@@ -107,7 +113,9 @@ class ReplayBuffer:
                 'masks': self.next_masks.index_select(0, indices),
                 'types': self.next_types.index_select(0, indices)
             },
-            'dones': self.dones.index_select(0, indices)
+            'dones': self.dones.index_select(0, indices),
+            'before': self.evader_before_action.index_select(0, indices),
+            'after': self.evader_after_action.index_select(0, indices)
         }
         return batch
 

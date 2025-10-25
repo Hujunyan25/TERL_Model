@@ -227,7 +227,7 @@ class Agent:
             # Other types remain unchanged
             return data
 
-    def act(self, state, eps=0.0, cvar=1.0, use_eval=True):
+    def act(self, state, evader_tensor, eps=0.0, cvar=1.0, use_eval=True):
         """
         Select action based on IQN policy.
 
@@ -250,7 +250,7 @@ class Agent:
             self.policy_local.train()
 
         with torch.no_grad():
-            quantiles, taus = self.policy_local(state, self.policy_local.K, cvar)
+            quantiles, taus = self.policy_local(evader_tensor, state, self.policy_local.K, cvar)
             action_values = quantiles.mean(dim=1)
 
         self.policy_local.train()
@@ -335,20 +335,22 @@ class Agent:
         Returns:
             float: Training loss.
         """
-        states, actions, rewards, next_states, dones = self.memory.sample().values()
+        states, actions, rewards, next_states, dones, evader_action_before, evader_action_after = self.memory.sample().values()
         actions = actions.unsqueeze(-1).long()
         rewards = rewards.unsqueeze(-1).float()
         dones = dones.unsqueeze(-1).float()
+        evader_action_before = evader_action_before.float()
+        evader_action_after = evader_action_after.float()
 
         self.optimizer.zero_grad()
         # Get max predicted Q values (for next states) from target model
-        Q_targets_next, _ = self.policy_target(next_states)
+        Q_targets_next, _ = self.policy_target(evader_action_after, next_states)
         Q_targets_next = Q_targets_next.detach().max(2)[0].unsqueeze(1)  # (batch_size, 1, N)
 
         # Compute Q targets for current states
         Q_targets = rewards.unsqueeze(-1) + (self.GAMMA * Q_targets_next * (1. - dones.unsqueeze(-1)))
         # Get expected Q values from local model
-        Q_expected, taus = self.policy_local(states)
+        Q_expected, taus = self.policy_local(evader_action_before, states)
         Q_expected = Q_expected.gather(2, actions.unsqueeze(-1).expand(self.BATCH_SIZE, 8, 1))
 
         # Quantile Huber loss

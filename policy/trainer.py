@@ -87,7 +87,7 @@ class Trainer:
         self.pursuer_agent = pursuer_agent
         self.evader_agent = evader_agent
         self.eval_config = []
-        # self.create_eval_configs(eval_schedule)
+        self.create_eval_configs(eval_schedule)
 
         self.trainer_config = ConfigManager().get_instance()
         self.UPDATE_EVERY = self.trainer_config.get("training.update_every", update_every)
@@ -107,7 +107,7 @@ class Trainer:
         # Evaluation data
         self.eval_timesteps = []
         self.eval_actions = []
-        # self.eval_trajectories = []
+        self.eval_trajectories = []
         self.eval_rewards = []
         self.eval_successes = []
         self.eval_times = []
@@ -141,8 +141,8 @@ class Trainer:
                 # Save evaluation configuration
                 self.eval_config.append(self.eval_env.episode_data())
                 count += 1
-                # logger.info(f"Process {os.getpid()} Success in generating pursuer evader eval_configs "
-                #             f"at num_episodes {i}: num_episode {_}🤗!")
+                logger.info(f"Process {os.getpid()} Success in generating pursuer evader eval_configs "
+                            f"at `num_episodes` {i}: num_episode {_}🤗!")
 
     def save_eval_config(self, directory: Path):
         """
@@ -186,6 +186,12 @@ class Trainer:
         states_collision, _ = self.train_env.reset()
         states, _ = states_collision
         evader_states, _ = self.train_env.get_evaders_observation()
+        self.train_env.add_trajectory()
+        # init_evader_states = evader_states
+        # window = []  # 存储最近的观测
+        # padding_value = init_evader_states[0][0:4]  # 初始位置或其他填充值
+        # seq_len = 8  # 输入序列长度
+        # window.append(padding_value)
 
         # # Sample CVaR value from (0.0,1.0)
         # cvar = 1 - np.random.uniform(0.0, 1.0)
@@ -198,17 +204,41 @@ class Trainer:
 
         while self.current_timestep <= total_timesteps:
             eps = self.linear_eps(total_timesteps)
-
             states = [self.convert_to_tensor(state, self.device) for state in states]
+            # current_obs = evader_states[0][0:4] # 当前步观测
+            # window.append(current_obs)
+            # # 若窗口长度不足8，用填充值在前面补全
+            # if len(window) < seq_len:
+            #     padded_seq = [padding_value] * (seq_len - len(window)) + window
+            # else:
+            #     padded_seq = window[-seq_len:]  # 取最近8步
+            # padded_np = np.array(padded_seq, dtype=np.float32)
+
+            # # 2. 转换为PyTorch张量
+            # padded_tensor = torch.tensor(padded_np)
+
+            # # 3. 增加batch_size维度
+            # input_tensor = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+            # input_tensor = input_tensor.to("cuda:0")
+
             # Get actions for all robots
             actions = []
             for i, rob in enumerate(self.train_env.pursuers):
                 if rob.deactivated:
                     actions.append(None)
                     continue
+                
+                padded_np = np.array(rob.capture_segment, dtype=np.float32)
+
+                # 1. 转换为PyTorch张量
+                padded_tensor = torch.tensor(padded_np)
+
+                # 2. 增加batch_size维度
+                input_tensor = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+                input_tensor = input_tensor.to("cuda:0")
 
                 if self.pursuer_agent.use_iqn:
-                    action, _, _ = self.pursuer_agent.act(states[i], eps)
+                    action, _, _ = self.pursuer_agent.act(states[i], input_tensor, eps)
                 else:
                     action, _ = self.pursuer_agent.act_dqn(states[i], eps)
                 actions.append(action)
@@ -226,17 +256,31 @@ class Trainer:
 
             # Execute actions and get next states
             next_states, rewards, dones, infos = self.train_env.step((actions, evader_actions))
+
+            # padded_np = np.array(padded_seq, dtype=np.float32)
+            # # 2. 转换为PyTorch张量
+            # padded_tensor = torch.tensor(padded_np)
+            # # 3. 增加batch_size维度
+            # evader_after_action = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+
             next_evader_states, _ = self.train_env.get_evaders_observation()
             next_states = [self.convert_to_tensor(state, self.device) for state in next_states]
+            self.train_env.add_trajectory()
 
             # Save experience to replay buffer
             for i, pursuer in enumerate(self.train_env.pursuers):
                 if pursuer.deactivated:
                     continue
 
+                padded_np = np.array(pursuer.capture_segment, dtype=np.float32)
+                # 2. 转换为PyTorch张量
+                padded_tensor = torch.tensor(padded_np)
+                # 3. 增加batch_size维度
+                evader_after_action = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+
                 ep_rewards[i] += self.pursuer_agent.GAMMA ** ep_length * rewards[i]
                 if self.pursuer_agent.training:
-                    self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i])
+                    self.pursuer_agent.memory.add(states[i], actions[i], rewards[i], next_states[i], dones[i], input_tensor, evader_after_action)
 
                 if pursuer.collision:
                     pursuer.deactivated = True
@@ -261,8 +305,8 @@ class Trainer:
 
                 # Evaluate every eval_freq steps
                 if self.current_timestep == self.learning_starts or self.current_timestep % eval_freq == 0:
-                    # self.evaluation()
-                    # self.save_evaluation(eval_log_path)
+                    self.evaluation()
+                    self.save_evaluation(eval_log_path)
                     for agent in [self.pursuer_agent]:
                         if agent is None or not agent.training:
                             continue
@@ -304,6 +348,7 @@ class Trainer:
                 states_collision, _ = self.train_env.reset()
                 states, _ = states_collision
                 evader_states, _ = self.train_env.get_evaders_observation()
+                self.train_env.add_trajectory()
 
                 ep_rewards = np.zeros(len(self.train_env.pursuers))
                 ep_deactivated_t = [-1] * len(self.train_env.pursuers)
@@ -374,7 +419,7 @@ class Trainer:
         """
         # Initialize data storage
         # actions_data = []
-        # trajectories_data = []
+        trajectories_data = []
         rewards_data = []
         successes_data = []
         times_data = []
@@ -388,8 +433,9 @@ class Trainer:
             logger.info(f"Process {os.getpid()} - Evaluating episode {idx}")
 
             # Record environment reset time
-            state, _ = self.eval_env.reset_with_eval_config(config)
+            states, _ = self.eval_env.reset_with_eval_config(config)
             evader_states, _ = self.eval_env.get_evaders_observation()
+            self.eval_env.add_trajectory()
 
             # obs = [[copy.deepcopy(rob.perception.observed_obstacles)] for rob in self.eval_env.pursuers]
             # pursuers = [[copy.deepcopy(rob.perception.observed_pursuers)] for rob in self.eval_env.pursuers]
@@ -411,10 +457,18 @@ class Trainer:
                         action.append(None)
                         continue
 
+                    padded_np = np.array(rob.capture_segment, dtype=np.float32)
+                    # 1. 转换为PyTorch张量
+                    padded_tensor = torch.tensor(padded_np)
+
+                    # 2. 增加batch_size维度
+                    input_tensor = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+                    input_tensor = input_tensor.to("cuda:0")
+
                     if self.pursuer_agent.use_iqn:
-                        a, _, _ = self.pursuer_agent.act(state[i])
+                        a, _, _ = self.pursuer_agent.act(states[i], input_tensor)
                     else:
-                        a, _ = self.pursuer_agent.act_dqn(state[i])
+                        a, _ = self.pursuer_agent.act_dqn(states[i])
 
                     action.append(a)
 
@@ -429,7 +483,7 @@ class Trainer:
                     evader_action.append(a)
 
                 # Execute actions
-                state, reward, done, info = self.eval_env.step((action, evader_action))
+                states, reward, done, info = self.eval_env.step((action, evader_action))
                 evader_states, _ = self.eval_env.get_evaders_observation()
 
                 for i, rob in enumerate(self.eval_env.pursuers):
@@ -466,7 +520,7 @@ class Trainer:
             success = True if self.eval_env.check_all_evader_is_captured() else False
 
             # actions_data.append(actions)
-            # trajectories_data.append(trajectories)
+            trajectories_data.append(trajectories)
             rewards_data.append(np.mean(rewards))
             successes_data.append(success)
             times_data.append(np.mean(times))
@@ -491,7 +545,7 @@ class Trainer:
 
         self.eval_timesteps.append(self.current_timestep)
         # self.eval_actions.append(actions_data)
-        # self.eval_trajectories.append(trajectories_data)
+        self.eval_trajectories.append(trajectories_data)
         self.eval_rewards.append(rewards_data)
         self.eval_successes.append(successes_data)
         self.eval_times.append(times_data)
@@ -527,7 +581,7 @@ class Trainer:
         eval_data = {
             "timesteps": np.array(self.eval_timesteps, dtype=object),
             "actions": np.array(self.eval_actions, dtype=object),
-            # "trajectories": np.array(self.eval_trajectories, dtype=object),
+            "trajectories": np.array(self.eval_trajectories, dtype=object),
             "rewards": np.array(self.eval_rewards, dtype=object),
             "successes": np.array(self.eval_successes),
             "times": np.array(self.eval_times),

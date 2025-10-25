@@ -803,6 +803,33 @@ class MarineEnv(gym.Env):
         self.total_time_steps += 1
 
         return observations, rewards, dones, infos
+    
+    def add_trajectory(self):
+        seq_len = 8
+        evader_after_action = [self.evaders[0].x, self.evaders[0].y, self.evaders[0].theta, self.evaders[0].speed, 1]
+        evader_after_action_padding = [0 for _ in range(5)]
+        padding_value = [0 for _ in range(5)]
+        for pursuer in self.pursuers:
+            if pursuer.deactivated:
+                continue
+            pursuer.capture_segment.clear()
+            if(np.sqrt((pursuer.x - self.evaders[0].x) ** 2 + (pursuer.y - self.evaders[0].y) ** 2) < pursuer.perception.range):
+                pursuer.observation_evader.append(evader_after_action)
+            else:
+                pursuer.observation_evader.append(evader_after_action_padding)
+            if len(pursuer.observation_evader) < seq_len:
+                pursuer.capture_segment = [padding_value] * (seq_len - len(pursuer.observation_evader)) + pursuer.observation_evader
+            else:
+                pursuer.capture_segment = pursuer.observation_evader[-seq_len:]  # 取最近8步
+            # padded_np = np.array(padded_seq, dtype=np.float32)
+
+            # # 2. 转换为PyTorch张量
+            # padded_tensor = torch.tensor(padded_np)
+
+            # # 3. 增加batch_size维度
+            # input_tensor = padded_tensor.unsqueeze(0)  # 在第0维增加batch维度
+            # input_tensor = input_tensor.to("cuda:0")
+
 
     def get_evenly_distributed_reward(self, angles: List[float]) -> float:
         """

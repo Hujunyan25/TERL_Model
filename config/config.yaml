@@ -2,13 +2,13 @@
 # Some parameters are for recording purposes only and will not be used during training.
 
 # Set random seed to ensure experiment reproducibility
-seed: 10
+seed: 11
 
 # Total number of training timesteps
-total_timesteps: 7000000
+total_timesteps: 500000
 
 # Frequency of evaluation during training
-eval_freq: 200000
+eval_freq: 20000
 
 # Training schedule parameters
 training_schedule:
@@ -21,7 +21,7 @@ training_schedule:
   # Number of ocean current fields used at each stage
   num_cores: [ 1]
   # Number of obstacles in the environment at each stage
-  num_obstacles: [ 2 ]
+  num_obstacles: [ 4 ]
   # Minimum initial distance between pursuers and evaders
   min_pursuer_evader_init_dis: [ 10.0 ]
 
@@ -29,27 +29,27 @@ training_schedule:
 eval_schedule:
   # Number of episodes per evaluation configuration
   # Increase the number of episodes for more stable evaluation results
-  num_episodes: [ 20, 20, 20, 20, 20 ]
+  num_episodes: [ 50 ]
 
   # Number of pursuers per evaluation step
   # Covers key stages from training: initial (3), mid-stage (7,11), late-stage (15,18)
-  num_pursuers: [ 3, 7, 11, 15, 18 ]
+  num_pursuers: [ 4 ]
 
   # Number of evaders per evaluation step
   # Corresponding to different stages in training
-  num_evaders: [ 1, 2, 3, 4, 5 ]
+  num_evaders: [ 1 ]
 
   # Number of processing units used per evaluation step
   # Adapt processing units based on task complexity
-  num_cores: [ 4, 6, 8, 8, 8 ]
+  num_cores: [ 4 ]
 
   # Number of obstacles in the environment per evaluation step
   # Gradually increasing complexity
-  num_obstacles: [ 0, 2, 4, 6, 8 ]
+  num_obstacles: [ 2 ]
 
   # Minimum initial distance between pursuers and evaders during evaluation
   # Use larger distances from the final stage of training to test stability
-  min_pursuer_evader_init_dis: [ 20.0, 20.0, 20.0, 20.0, 20.0 ]
+  min_pursuer_evader_init_dis: [ 20.0 ]
 
 exp_schedule:
   # 20 episodes per evaluation configuration to ensure result stability
@@ -84,9 +84,9 @@ training:
 # Environment parameters
 env:
   # Width of the environment
-  width: 100.0
+  width: 120.0
   # Height of the environment
-  height: 100.0
+  height: 120.0
   # Radius around the pursuer that must be free of objects
   clear_r: 15.0
   # Range of obstacle radius

@@ -33,6 +33,7 @@ class Evader(Robot):
         # self.w = self.eva_config.get("evader.w", default=np.array([-0.5235987755982988, -0.2617993877991494, 0.0, 0.2617993877991494, 0.5235987755982988]))
         self.w = np.array([-0.5235987755982988, -0.2617993877991494, 0.0, 0.2617993877991494, 0.5235987755982988])
         self.perception = Perception(is_evader=True)  # Override perception in subclass
+        self.perception.range = 20
 
         # Precomputed values
         self.compute_k()  # Calculate and update water resistance coefficient

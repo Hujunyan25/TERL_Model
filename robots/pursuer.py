@@ -48,6 +48,7 @@ class Pursuer(Robot):
         # self.w = self.pur_config.get("pursuer.w", default=np.array([-0.5235987755982988, 0.0, 0.5235987755982988]))
         self.w = np.array([-0.5235987755982988, 0.0, 0.5235987755982988])
         self.perception = Perception(is_evader=False)
+        self.perception.range = 10
 
         self.captured_evaderId_list: List[int] = []  # List of captured evaders
         self.is_current_target_captured = False  # Whether the current target has been captured
@@ -70,6 +71,8 @@ class Pursuer(Robot):
         self.num_static_feature = 5
         self.num_pursuer_feature = 7
         self.num_evader_feature = 7
+        self.observation_evader = []
+        self.capture_segment = []
 
     def find_related_evader(self, evaders: List[Evader]):
         """
