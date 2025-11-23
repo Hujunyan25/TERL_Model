@@ -114,6 +114,28 @@ class TargetSelectionModule(nn.Module):
 
         return enhanced_feature, attention_weights.squeeze(1)
 
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.lstm = nn.LSTM(
+            input_size = input_size,
+            hidden_size= hidden_size,
+            num_layers = num_layers,
+            batch_first= True,#输入形状（batch_size, seq_len, input_size)
+            dropout= 0.1 #droupout
+        )
+
+        self.fc = nn.Linear(hidden_size, output_size)
+    
+    def forward(self, x):
+        out, (h_n, c_n) = self.lstm(x)
+        out = out[:, -1, :] #提取的是最后一个时间步：（batch_size, hidden_size)
+        out = self.fc(out) #形状：（batch_size, output_size)
+        return out 
+
 
 class TERLPolicy(nn.Module):
     """
@@ -183,7 +205,7 @@ class TERLPolicy(nn.Module):
         )
 
         # Add target selection module
-        self.target_selection = TargetSelectionModule(self.hidden_dim)
+        # self.target_selection = TargetSelectionModule(self.hidden_dim)
 
         # IQN related layers
         self.cos_embedding = nn.Linear(self.n, self.hidden_dim)
@@ -298,15 +320,17 @@ class TERLPolicy(nn.Module):
         evader_mask = flat_mask.reshape(B, max_evaders)  # [B, max_evaders]
         evader_features = flat_features.reshape(B, max_evaders, -1)  # [B, max_evaders, H]
 
+        
+
         # Apply target selection module
-        enhanced_features, attention_weights = self.target_selection(
-            enhanced_feature,
-            evader_features,
-            evader_mask
-        )
+        # enhanced_features, attention_weights = self.target_selection(
+        #     enhanced_feature,
+        #     evader_features,
+        #     evader_mask
+        # )
 
         # Store attention weights for visualization
-        self._last_target_weights = attention_weights
+        # self._last_target_weights = attention_weights
 
         return enhanced_features
 
