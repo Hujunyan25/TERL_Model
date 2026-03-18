@@ -719,7 +719,7 @@ class MarineEnv(gym.Env):
         all_pursuers_dis_after = self.get_pursuers_distance_evaders()
 
         all_pursuers_distance_to_other_pursuers = self.get_distance_to_other_pursuers()
-        all_purers_distance_to_obstacles = self.get_distance_to_obstacles()
+        all_pursuers_distance_to_obstacles = self.get_distance_to_obstacles()
 
         # Define capture thresholds
         capture_distance = self.pursuers[0].distance_capture  # Capture distance
@@ -734,7 +734,7 @@ class MarineEnv(gym.Env):
             min_dis_after = min(all_pursuers_dis_after[i])
 
             dis_to_pursuer = all_pursuers_distance_to_other_pursuers[i]
-            dis_to_obstacle = all_purers_distance_to_obstacles[i]
+            dis_to_obstacle = all_pursuers_distance_to_obstacles[i]
 
             # Apply time penalty
             rewards[i] += self.timestep_penalty
@@ -800,6 +800,24 @@ class MarineEnv(gym.Env):
         self.total_time_steps += 1
 
         return observations, rewards, dones, infos
+    
+    # def cal_neighbors(self, pursuers:List[Pursuer]):
+    #     #用于计算邻居网络
+    #     network_id = {}
+    #     network_pos = {}
+    #     for i, pursuer in enumerate(pursuers):
+    #         if pursuer.deactivated :
+    #             continue
+    #         neighbor_li = []
+    #         for j, neighbor in enumerate(pursuers):
+    #             if neighbor.deactivated or j == i :
+    #                 continue
+    #             if (pursuer.x - neighbor.x) ** 2 + (pursuer.y - neighbor.y) ** 2 < pursuer.perception.range **2:
+    #                 neighbor_li.append(j)
+    #         network_id[i] = neighbor_li
+    #         network_pos[i] = (pursuer.x, pursuer.y)
+    #     return network_id, network_pos
+
 
     def get_evenly_distributed_reward(self, angles: List[float]) -> float:
         """

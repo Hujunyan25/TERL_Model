@@ -1,0 +1,15 @@
+/Users/hujunyan/TERL/TERL_Model/RunPython/bin/Debug/net10.0/RunPython
+/Users/hujunyan/TERL/TERL_Model/RunPython/bin/Debug/net10.0/RunPython.deps.json
+/Users/hujunyan/TERL/TERL_Model/RunPython/bin/Debug/net10.0/RunPython.runtimeconfig.json
+/Users/hujunyan/TERL/TERL_Model/RunPython/bin/Debug/net10.0/RunPython.dll
+/Users/hujunyan/TERL/TERL_Model/RunPython/bin/Debug/net10.0/RunPython.pdb
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.GeneratedMSBuildEditorConfig.editorconfig
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.AssemblyInfoInputs.cache
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.AssemblyInfo.cs
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.csproj.CoreCompileInputs.cache
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.sourcelink.json
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.dll
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/refint/RunPython.dll
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.pdb
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/RunPython.genruntimeconfig.cache
+/Users/hujunyan/TERL/TERL_Model/RunPython/obj/Debug/net10.0/ref/RunPython.dll

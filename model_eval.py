@@ -9,15 +9,20 @@ from visualization import env_visualizer
 import cv2
 import shutil
 from datetime import datetime
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class generate_video():
-    def __init__(self, num_pursuers, num_evaders, num_cores, num_obs):
+    def __init__(self, num_pursuers, num_evaders, pursuer_perception, num_obs):
         self.seed = 10
         self.eval_env = MarineEnv(self.seed)
         self.eval_env.num_pursuers = int(num_pursuers)
         self.eval_env.num_evaders = int(num_evaders)
-        self.eval_env.num_cores = int(num_cores)
+        for pursuer in self.eval_env.pursuers:
+            pursuer.perception.range = int(pursuer_perception)
+        for evader in self.eval_env.evaders:
+            evader.perception.range = int(pursuer_perception)
         self.eval_env.num_obs = int(num_obs)
         pursuer_state, _ = self.eval_env.reset()
         self.state, _ = pursuer_state
@@ -73,15 +78,59 @@ class generate_video():
                 energies[i] +=  rob.compute_action_energy_cost(action[i])
                 if rob.collision:
                     rob.deactivated = True
+            # network_id, network_pos = eval_env.cal_neighbors(eval_env.pursuers)
+            # if length % 10 == 0:
+            #     self.generate_topology_diagram(network_id, network_pos,length)
             end_episode = (length >= 1000) or len([pursuer for pursuer in eval_env.pursuers if
                                                 not pursuer.deactivated]) < 3 or eval_env.check_all_evader_is_captured()
             length += 1
         end_time = time.perf_counter()
         execution_time = end_time - start_time
+        # self.generate_topology_diagram(network_id, network_pos,length)
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
         pursuer_captured_Id = [pursuer.captured_evaderId_list for pursuer in self.eval_env.pursuers]
         return trajectories, energies,times,execution_time, pursuer_captured_Id, pursuer_a_list, pursuer_w_list
     
+
+    # def generate_topology_diagram(self, node_neighbors:dict, 
+    #                               node_positions:dict,
+    #                               timestamp,
+    #                               is_directed = False):
+    #     plt.figure(figsize=(12, 6)) 
+    #     G = nx.DiGraph() if is_directed else nx.Graph()
+    #     nodes = list(node_neighbors.keys())
+    #     G.add_nodes_from(nodes)
+    #     edges = []
+    #     for node, neighbors in node_neighbors.items():
+    #         for neighbor in neighbors:
+    #             if is_directed:
+    #                 edges.append((node, neighbor))
+    #             else:
+    #                 #无向边避免重复（A-B，B-A只添加一次）
+    #                 if (neighbor, node) not in edges and (node, neighbor) not in edges:
+    #                     edges.append((node, neighbor))
+    #     G.add_edges_from(edges)
+    #     pos = node_positions
+    #     node_colors = []
+    #     for node in G.nodes():
+    #         node_colors.append("lightblue")
+    #     nx.draw_networkx_nodes(G, pos, node_size = 1500,
+    #                            node_color = node_colors, edgecolors="black", linewidths=2)
+    #     if not is_directed:
+    #         nx.draw_networkx_edges(G, pos, width = 2, edge_color = "gray")
+        
+    #     nx.draw_networkx_labels(G, pos, font_size = 12, font_weight = "bold", font_family = "SimHei")
+    #     # plt.title("第"+ str(timestamp) + "时刻拓扑图", fontsize = 14)
+    #     plt.axis("off")
+    #     plt.xlim(-10, 130)
+    #     plt.ylim(-10, 130)
+    #     plt.grid(alpha = 0)
+    #     plt.tight_layout()
+    #     plt.savefig("nt_graph_" + str(timestamp) + ".png",
+    #                 dpi = 300,
+    #                 bbox_inches = "tight")
+    #     plt.close()
+
 
     def run_experiment(self):
         eavl_configs = self.eval_env.episode_data()

@@ -1,4 +1,4 @@
-import sys,os
+import sys,os,argparse
 # 获取 model_eval.py 所在目录的绝对路径
 model_eval_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 # 将该目录添加到 sys.path
@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
 from uav_mainwindow import Ui_MainWindow 
 from model_eval import generate_video
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, QTimer
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 import numpy as np
 from pyqtgraph import mkPen
@@ -17,7 +17,7 @@ from pyqtgraph import mkPen
 
 
 class Apply(QMainWindow, Ui_MainWindow):
-    def __init__(self):
+    def __init__(self, pursuer_num=None, evader_num=None, pursuer_perception=None, obstacle_num=None):
         super().__init__()
         self.setupUi(self)
         # 1. 初始化媒体播放器
@@ -38,6 +38,15 @@ class Apply(QMainWindow, Ui_MainWindow):
 
         self.Stop_Button.clicked.connect(self.media_player.pause)
         self.Continue_Button.clicked.connect(self.media_player.play)
+        
+        # 如果提供了命令行参数，自动填充并运行
+        if all([pursuer_num, evader_num, pursuer_perception, obstacle_num]):
+            self.Pursuer_Num_LineEdit.setText(str(pursuer_num))
+            self.Evader_Num_LineEdit.setText(str(evader_num))
+            self.R_Perception_lineEdit.setText(str(pursuer_perception))
+            self.Obstacle_Num_LineEdit.setText(str(obstacle_num))
+            # 使用定时器延迟调用，确保UI完全初始化
+            QTimer.singleShot(100, self.on_apply_clicked)
 
 
         
@@ -122,10 +131,23 @@ class Apply(QMainWindow, Ui_MainWindow):
             self.media_player.pause()
 
 
-    
+def parse_args():
+    parser = argparse.ArgumentParser(description='UAV Pursuit-Evasion Visualization Tool')
+    parser.add_argument('--pursuer-num', type=int, help='Number of pursuers')
+    parser.add_argument('--evader-num', type=int, help='Number of evaders')
+    parser.add_argument('--perception', type=int, help='Pursuer perception range')
+    parser.add_argument('--obstacle-num', type=int, help='Number of obstacles')
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
+    args = parse_args()
     app = QApplication(sys.argv)
-    window = Apply()
+    window = Apply(
+        pursuer_num=args.pursuer_num,
+        evader_num=args.evader_num,
+        pursuer_perception=args.perception,
+        obstacle_num=args.obstacle_num
+    )
     window.show()
     sys.exit(app.exec_())

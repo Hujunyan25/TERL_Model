@@ -9,6 +9,8 @@ import matplotlib.cm as cm
 import matplotlib.patches as patches
 import matplotlib as mpl
 
+# 方法1：全局设置
+plt.rcParams['font.sans-serif'] = ['Songti SC']
 # mpl.use('TkAgg')
 mpl.use('Agg')
 
@@ -164,7 +166,7 @@ class EnvVisualizer:
                 # self.axis_title.text(-0.9,0.,"IQN performance",fontweight="bold",fontsize=45)
 
                 self.axis_graph = self.fig.add_subplot(spec[:, :8])
-                self.axis_graph.set_title("TERL performance", fontweight="bold", fontsize=30)
+                self.axis_graph.set_title("追捕过程", fontweight="bold", fontsize=30)
 
                 self.axis_perception = self.fig.add_subplot(spec[1:3, 8:])
                 # self.axis_dist.append(self.fig.add_subplot(spec[2:, 9:11]))
@@ -477,7 +479,7 @@ class EnvVisualizer:
         self.axis_perception.set_xlim([-rob.perception.range - 1, rob.perception.range + 1])
         self.axis_perception.set_ylim([-rob.perception.range - 1, rob.perception.range + 1])
         self.axis_perception.set_aspect('equal')  # Set aspect ratio to equal
-        self.axis_perception.set_title(f'Pursuer {robot_idx}', fontsize=25)  # Set title
+        self.axis_perception.set_title(f'编号：{robot_idx}', fontsize=25)  # Set title
 
         self.remove_axis_ticks_and_spines(self.axis_perception)
 

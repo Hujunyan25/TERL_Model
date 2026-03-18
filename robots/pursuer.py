@@ -48,7 +48,6 @@ class Pursuer(Robot):
         # self.w = self.pur_config.get("pursuer.w", default=np.array([-0.5235987755982988, 0.0, 0.5235987755982988]))
         self.w = np.array([-0.5235987755982988, 0.0, 0.5235987755982988])
         self.perception = Perception(is_evader=False)
-
         self.captured_evaderId_list: List[int] = []  # List of captured evaders
         self.is_current_target_captured = False  # Whether the current target has been captured
         self.is_pursuing = False  # Whether the pursuer is actively pursuing
@@ -60,6 +59,7 @@ class Pursuer(Robot):
         # Precomputed values
         self.compute_k()  # Compute and update water resistance coefficient
         self.compute_actions()  # Compute and update action list
+        self.neighbors = []
 
         self.num_self_state = 4
         self.num_static_state = 25
