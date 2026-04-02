@@ -14,15 +14,11 @@ import matplotlib.pyplot as plt
 
 
 class generate_video():
-    def __init__(self, num_pursuers, num_evaders, pursuer_perception, num_obs):
+    def __init__(self, num_pursuers, num_obs):
         self.seed = 10
         self.eval_env = MarineEnv(self.seed)
         self.eval_env.num_pursuers = int(num_pursuers)
-        self.eval_env.num_evaders = int(num_evaders)
-        for pursuer in self.eval_env.pursuers:
-            pursuer.perception.range = int(pursuer_perception)
-        for evader in self.eval_env.evaders:
-            evader.perception.range = int(pursuer_perception)
+        self.eval_env.num_evaders = 1
         self.eval_env.num_obs = int(num_obs)
         pursuer_state, _ = self.eval_env.reset()
         self.state, _ = pursuer_state
@@ -85,7 +81,7 @@ class generate_video():
                                                 not pursuer.deactivated]) < 3 or eval_env.check_all_evader_is_captured()
             length += 1
         end_time = time.perf_counter()
-        execution_time = end_time - start_time
+        execution_time = max(times)
         # self.generate_topology_diagram(network_id, network_pos,length)
         trajectories = [copy.deepcopy(rob.trajectory) for rob in eval_env.pursuers + eval_env.evaders]
         pursuer_captured_Id = [pursuer.captured_evaderId_list for pursuer in self.eval_env.pursuers]

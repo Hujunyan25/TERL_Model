@@ -91,7 +91,6 @@ class MarineEnv(gym.Env):
         distance_reward (float): Distance reward value.
         collision_penalty (float): Collision penalty value.
         goal_reward (float): Goal achievement reward.
-        num_cores (int): Number of vortex cores.
         num_obs (int): Number of obstacles.
         num_pursuers (int): Number of pursuers.
         num_evaders (int): Number of evaders.
@@ -189,7 +188,6 @@ class MarineEnv(gym.Env):
             self.related_distance = 18.0
 
         # Entity counts
-        self.num_cores = 8  # number of vortex cores
         self.num_obs = 8  # number of obstacles
         self.num_pursuers = 1  # number of pursuers
         self.num_evaders = 1  # number of evaders
@@ -247,14 +245,12 @@ class MarineEnv(gym.Env):
 
             self.num_pursuers = self.schedule["num_pursuers"][idx]
             self.num_evaders = self.schedule["num_evaders"][idx]
-            self.num_cores = self.schedule["num_cores"][idx]
             self.num_obs = self.schedule["num_obstacles"][idx]
             self.min_pursuer_evader_init_dis = self.schedule["min_pursuer_evader_init_dis"][idx]
 
             logger.info(f"Process {os.getpid()} ======== training schedule ========")
             logger.info(f"Process {os.getpid()} num of pursuers: {self.num_pursuers}")
             logger.info(f"Process {os.getpid()} num of evaders: {self.num_evaders}")
-            logger.info(f"Process {os.getpid()} num of cores: {self.num_cores}")
             logger.info(f"Process {os.getpid()} num of obstacles: {self.num_obs}")
             logger.info(f"Process {os.getpid()} min pursuer_start goal dis: {self.min_pursuer_evader_init_dis}")
             logger.info(f"Process {os.getpid()} ======== training schedule ========\n")
@@ -308,41 +304,6 @@ class MarineEnv(gym.Env):
                     logger.error("Failed to generate required number of pursuers🥲!")
                     sys.exit("-1 at code:reset, MarineEnv, line 322. Failed to generate required number of pursuers🥲!")
 
-        # Generate vortex cores
-        num_cores = self.num_cores
-        if num_cores > 0:
-            iteration = 8000
-            while True:
-                # Random vortex core center
-                center = self.rd.uniform(low=np.zeros(2), high=np.array([self.width, self.height]))
-                # Random rotation direction
-                direction = self.rd.binomial(1, 0.5)
-                # Reduced intensity parameters
-                v_edge = self.rd.uniform(low=self.v_range[0] * 0.5, high=self.v_range[1] * 0.5)
-                gamma = 2 * np.pi * (self.vortex_core_radius * 0.5) * v_edge
-                core = Core(center[0], center[1], bool(direction), gamma)
-                iteration -= 1
-                if self.check_core(core):
-                    self.cores.append(core)
-                    num_cores -= 1
-                if iteration == 0 or num_cores == 0:
-                    if len(self.cores) == self.num_cores:
-                        break
-                    else:
-                        logger.error(f"Failed to generate required number of {len(self.cores)}/{self.num_cores} cores🥲!")
-                        sys.exit("-1 at code:reset, MarineEnv, line 347. Failed to generate required number of cores🥲!")
-
-        centers = None
-        for core in self.cores:
-            if centers is None:
-                centers = np.array([[core.x, core.y]])
-            else:
-                c = np.array([[core.x, core.y]])
-                centers = np.vstack((centers, c))
-
-        # Store core positions in KDTree
-        if centers is not None:
-            self.core_centers = KDTree(centers)
 
         # Generate obstacles
         num_obs = self.num_obs
